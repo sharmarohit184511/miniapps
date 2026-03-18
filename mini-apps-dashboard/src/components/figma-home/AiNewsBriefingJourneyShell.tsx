@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { CircleHelp } from "lucide-react";
 import { DiwaliHomeScreen } from "./DiwaliHomeScreen";
@@ -21,14 +20,11 @@ export function AiNewsBriefingJourneyShell({ briefingUrl }: Props) {
       />
 
       <header className="fixed left-0 right-0 top-0 z-[70] flex h-12 items-center justify-between gap-2 border-b border-[#d0e4f0] bg-white/95 px-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:h-14 sm:px-5">
-        <Link
-          href="/dashboard"
-          className="shrink-0 rounded-full px-2 py-1.5 text-xs font-semibold text-[#013e7c] transition-colors hover:bg-[#e8f4fc] sm:px-3 sm:text-sm"
-        >
-          ← Dashboard
-        </Link>
+        <span className="min-w-0 shrink truncate text-xs font-semibold text-[#013e7c] sm:text-sm">
+          Home
+        </span>
         <span className="hidden min-w-0 truncate text-center text-[11px] font-medium text-[#013e7c]/80 sm:block sm:text-xs">
-          Figma design · briefing widget below
+          Briefing widget below
         </span>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button

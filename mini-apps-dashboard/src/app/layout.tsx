@@ -8,8 +8,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mini Apps Dashboard",
-  description: "Portfolio of mini app products",
+  title: "Mini Apps",
+  description: "Employee home with AI News Briefing",
 };
 
 export default function RootLayout({

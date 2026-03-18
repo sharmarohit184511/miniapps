@@ -46,9 +46,9 @@ function HistoryContent() {
     <div className="mx-auto min-h-dvh max-w-lg px-4 pb-12 pt-16">
       <div className="mb-6 flex items-center gap-3">
         <Link
-          href="/dashboard/ai-news-briefing"
+          href="/"
           className="flex size-10 items-center justify-center rounded-full border border-[#e5f1f7] text-[#013e7c] hover:bg-[#eef6fb]"
-          aria-label="Back"
+          aria-label="Back to home"
         >
           <ChevronLeft className="size-5" />
         </Link>

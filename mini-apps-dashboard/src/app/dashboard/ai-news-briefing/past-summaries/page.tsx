@@ -20,10 +20,10 @@ export default function PastSummariesPage() {
     <>
       <header className="fixed left-0 right-0 top-0 z-[70] flex h-12 items-center justify-between gap-2 border-b border-[#d0e4f0] bg-white/95 px-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:h-14 sm:px-5">
         <Link
-          href="/dashboard"
+          href="/"
           className="shrink-0 rounded-full px-2 py-1.5 text-xs font-semibold text-[#013e7c] transition-colors hover:bg-[#e8f4fc] sm:px-3 sm:text-sm"
         >
-          ← Dashboard
+          ← Home
         </Link>
         <span className="hidden min-w-0 truncate text-center text-[11px] font-medium text-[#013e7c]/80 sm:block sm:text-xs">
           Past summaries

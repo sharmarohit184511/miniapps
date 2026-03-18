@@ -1,0 +1,14 @@
+# Render Blueprint: deploy the Next.js dashboard from the monorepo root.
+# https://docs.render.com/blueprint-spec
+services:
+  - type: web
+    name: mini-apps-dashboard
+    runtime: node
+    plan: free # change if needed
+    rootDir: mini-apps-dashboard
+    # Install + production build (plain `yarn` alone does not run `next build`)
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

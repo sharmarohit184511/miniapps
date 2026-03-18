@@ -14,7 +14,7 @@ type MiniAppCardProps = MiniApp;
 export function MiniAppCard({ slug, title, description }: MiniAppCardProps) {
   const href =
     slug === AI_NEWS_BRIEFING_SLUG
-      ? "/dashboard/ai-news-briefing"
+      ? "/"
       : `/dashboard/${slug}`;
   const hint =
     slug === AI_NEWS_BRIEFING_SLUG

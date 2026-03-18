@@ -69,7 +69,7 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
     <div className="relative mx-auto flex min-h-dvh w-full max-w-[360px] flex-col bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.04)]">
       <main className="flex-1 overflow-y-auto px-6 pb-[220px] pt-5">
         <Link
-          href="/dashboard/ai-news-briefing"
+          href="/"
           className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#013e7c] hover:underline"
         >
           <ChevronLeft className="size-4" />

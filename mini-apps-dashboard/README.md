@@ -1,12 +1,12 @@
 # Mini Apps Dashboard
 
-Portfolio dashboard with a grid of mini apps. **AI News Briefing** opens the **Figma employee-home journey** (widget embedded in the design) with **Open full app** in the header; the standalone briefing app links **← Mini Apps** back to the dashboard.
+The **Figma employee-home** screen is the main entry at `/` (AI News Briefing widget + **Open full app** in the header). The mini-apps grid is no longer the landing page. The standalone briefing app can link back to this home URL.
 
 ## Troubleshooting: nothing on :3000 / :3001
 
 Dev uses **`-H 127.0.0.1`** so Next.js does not call `os.networkInterfaces()` (that can throw on some Mac/Node setups and **kill the dev server** before it listens).
 
-- Open **http://127.0.0.1:3000** (dashboard) and **http://127.0.0.1:3001** (briefing). `http://localhost:…` usually works too once the server is up.
+- Open **http://127.0.0.1:3000** (home / Figma screen) and **http://127.0.0.1:3001** (briefing). `http://localhost:…` usually works too once the server is up.
 - If you see **EMFILE: too many open files**, run `ulimit -n 10240` in the same terminal, then `npm run dev` again.
 
 ## Run dashboard + AI News Briefing together
@@ -23,14 +23,14 @@ Dev uses **`-H 127.0.0.1`** so Next.js does not call `os.networkInterfaces()` (t
    npm run dev:all
    ```
 
-   - **Dashboard:** [http://localhost:3000](http://localhost:3000) → redirects to `/dashboard`
+   - **Home (Figma design):** [http://localhost:3000](http://localhost:3000) → `/`
    - **AI News Briefing:** [http://localhost:3001](http://localhost:3001) (the briefing app’s `dev` script uses port **3001** so it always matches the dashboard.)
 
    If the News feed says the briefing app is unreachable, confirm the **briefing** line in the terminal shows `Ready` for **:3001**, or run `cd ../ai-news-briefing && npm run dev` in a separate terminal.
 
-3. On the dashboard, click **AI News Briefing** → product page embeds the app in an iframe and offers **Open in new tab**.
+3. Use **Open full app ↗** on the home screen to open the briefing app in a new tab (iframe widget is on the Figma home).
 
-### Run only the dashboard
+### Run only this app (no briefing server)
 
 ```bash
 npm run dev
