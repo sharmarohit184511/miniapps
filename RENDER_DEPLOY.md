@@ -1,12 +1,12 @@
 # Deploy on Render
 
-## Your service still uses Root Directory `src`?
+## Render path `/opt/render/project/src/package.json`
 
-The repo includes **`src/package.json`** as a **shim**: install + build run against `mini-apps-dashboard/`, and **Start** runs the dashboard. You should still fix Render properly (below) so you don’t depend on this.
+On Render, **`src` is the checkout root** (your repo root), not a folder named `src` in the repo. So **`package.json` must be at the repository root** (next to `mini-apps-dashboard/`). That root file runs install/build/start for the dashboard.
 
-## Error: `Could not read package.json` under `.../src/package.json`
+## Error: missing `package.json` at deploy root
 
-That happens when **Root Directory** is set to `src` but there was no `package.json` there. The real app is in **`mini-apps-dashboard/`**.
+The Next.js app lives in **`mini-apps-dashboard/`**; root **`package.json`** delegates `postinstall` + **`start`** there when Render only runs `yarn` + `npm run start` at repo root.
 
 ### Monorepo (repo has `mini-apps-dashboard/` at the root)
 

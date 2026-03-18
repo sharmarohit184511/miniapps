@@ -1,9 +1,0 @@
-{
-  "name": "miniapps-render-shim",
-  "private": true,
-  "description": "Render has Root Directory = src but the Next.js app is in ../mini-apps-dashboard. Fix in Render: Root Directory mini-apps-dashboard, Build npm ci && npm run build. This shim makes the wrong config work.",
-  "scripts": {
-    "postinstall": "npm ci --prefix ../mini-apps-dashboard && npm run build --prefix ../mini-apps-dashboard",
-    "start": "npm run start --prefix ../mini-apps-dashboard"
-  }
-}
