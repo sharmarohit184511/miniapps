@@ -1,4 +1,8 @@
 # Monorepo — both apps
+# Render shim (src/package.json): local install artifacts
+src/package-lock.json
+src/yarn.lock
+
 .DS_Store
 *.pem
 
