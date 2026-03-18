@@ -1,8 +1,12 @@
 # Deploy on Render
 
+## Your service still uses Root Directory `src`?
+
+The repo includes **`src/package.json`** as a **shim**: install + build run against `mini-apps-dashboard/`, and **Start** runs the dashboard. You should still fix Render properly (below) so you don’t depend on this.
+
 ## Error: `Could not read package.json` under `.../src/package.json`
 
-That happens when **Root Directory** is set to `src`. The Next app’s `package.json` is next to the `src` folder (e.g. `mini-apps-dashboard/package.json`), not inside `src/`.
+That happens when **Root Directory** is set to `src` but there was no `package.json` there. The real app is in **`mini-apps-dashboard/`**.
 
 ### Monorepo (repo has `mini-apps-dashboard/` at the root)
 
