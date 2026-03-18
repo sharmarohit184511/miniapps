@@ -1,5 +1,7 @@
 # Deploy on Render
 
+AI News Briefing is part of **mini-apps-dashboard** (`/briefing`). One web service is enough.
+
 ## Render path `/opt/render/project/src/package.json`
 
 On Render, **`src` is the checkout root** (your repo root), not a folder named `src` in the repo. So **`package.json` must be at the repository root** (next to `mini-apps-dashboard/`). That root file runs install/build/start for the dashboard.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBriefingApiBase } from "@/lib/briefing-api-base";
+import { getBriefingApiOrigin } from "@/lib/briefing-api-base";
 
 function absoluteAudioUrl(
   base: string,
@@ -11,14 +11,14 @@ function absoluteAudioUrl(
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   if (!id?.trim()) {
     return NextResponse.json({ error: "Missing briefing id" }, { status: 400 });
   }
-  const base = getBriefingApiBase();
+  const base = getBriefingApiOrigin(request);
   try {
     const res = await fetch(`${base}/api/briefings/${encodeURIComponent(id)}?t=${Date.now()}`, {
       cache: "no-store",

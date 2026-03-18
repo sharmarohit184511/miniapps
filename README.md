@@ -1,28 +1,21 @@
 # Mini Apps
 
-Monorepo with two Next.js apps:
-
-| App | Folder | Dev port | Description |
-|-----|--------|----------|-------------|
-| **Mini Apps Dashboard** | [`mini-apps-dashboard/`](mini-apps-dashboard/) | `3000` | Employee / Figma-style home, AI News Briefing journey |
-| **AI News Briefing** | [`ai-news-briefing/`](ai-news-briefing/) | `3001` | Audio briefings (Akshay & Kriti), NewsAPI, TTS |
+| App | Folder | Description |
+|-----|--------|-------------|
+| **Mini Apps** (dashboard + AI News Briefing) | [`mini-apps-dashboard/`](mini-apps-dashboard/) | Figma home `/`, briefing `/briefing`, APIs under `/api/*` |
+| **AI News Briefing** (reference) | [`ai-news-briefing/`](ai-news-briefing/) | Legacy standalone app; logic merged into dashboard |
 
 ## Quick start
 
 ```bash
-# Dashboard + briefing together (recommended)
 cd mini-apps-dashboard
 npm install
-npm install --prefix ../ai-news-briefing
-cp ../ai-news-briefing/.env.example ../ai-news-briefing/.env.local   # fill keys
-cp .env.example .env.local   # e.g. AI_NEWS_BRIEFING_URL=http://127.0.0.1:3001
-npm run dev:all
+cp .env.example .env.local
+# Copy env ideas from ai-news-briefing/.env.example (NEWS_API_KEY, OpenAI, etc.)
+npm run dev
 ```
 
-- Dashboard: http://127.0.0.1:3000  
-- Briefing API: http://127.0.0.1:3001  
-
-See each app’s **README** for env vars (NewsAPI, OpenAI, ElevenLabs, Supabase, etc.).
+Open http://127.0.0.1:3000 — home and briefing share **one** dev server.
 
 ## Repo
 

@@ -208,7 +208,7 @@ export function useFigmaDayBriefingPlayer() {
       } catch (e) {
         const msg =
           e instanceof Error && e.name === "AbortError"
-            ? "Starting briefing timed out — is the AI News Briefing app running on port 3001?"
+            ? "Starting briefing timed out — check NEWS_API_KEY and server logs."
             : "Network error";
         setBriefingErr((prev) => ({
           ...prev,

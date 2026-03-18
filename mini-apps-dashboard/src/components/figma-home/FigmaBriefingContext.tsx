@@ -82,10 +82,14 @@ export function FigmaBriefingProvider({
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const briefingOrigin = useMemo(() => {
+    if (typeof window === "undefined") return "";
     try {
-      return new URL(briefingUrl).origin;
+      const resolved = briefingUrl.startsWith("http")
+        ? briefingUrl
+        : new URL(briefingUrl, window.location.origin).href;
+      return new URL(resolved).origin;
     } catch {
-      return "";
+      return window.location.origin;
     }
   }, [briefingUrl]);
 

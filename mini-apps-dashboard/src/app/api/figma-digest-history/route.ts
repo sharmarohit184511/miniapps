@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBriefingApiBase } from "@/lib/briefing-api-base";
+import { getBriefingApiOrigin } from "@/lib/briefing-api-base";
 
 export async function GET(request: NextRequest) {
   const lang = request.nextUrl.searchParams.get("lang") === "hi" ? "hi" : "en";
   const limit = Math.min(60, Math.max(1, Number(request.nextUrl.searchParams.get("limit")) || 30));
-  const base = getBriefingApiBase();
+  const base = getBriefingApiOrigin(request);
 
   try {
     const url = `${base}/api/figma-daily-digest?list=1&lang=${lang}&limit=${limit}`;

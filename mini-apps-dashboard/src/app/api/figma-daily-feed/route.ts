@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBriefingApiBase } from "@/lib/briefing-api-base";
+import { getBriefingApiOrigin } from "@/lib/briefing-api-base";
 
 function ymdOffset(daysAgo: number): string {
   const d = new Date();
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const lang = request.nextUrl.searchParams.get("lang") === "hi" ? "hi" : "en";
   const ensureDigest = request.nextUrl.searchParams.get("fill") === "1";
 
-  const base = getBriefingApiBase();
+  const base = getBriefingApiOrigin(request);
   const dates: string[] = [];
   for (let i = 0; i < days; i++) dates.push(ymdOffset(i));
 
@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
       /fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(raw) ||
       raw === "Failed to fetch";
     const error = unreachable
-      ? `Briefing app not reachable at ${base}. Start it on that URL (e.g. from mini-apps-dashboard: npm run dev:all).`
+      ? `Briefing API unreachable (${base}). Check NEWS_API_KEY and logs.`
       : raw;
     return NextResponse.json(
       {
         error,
-        hint: "Dashboard + briefing: npm run dev:all · Or set AI_NEWS_BRIEFING_URL to your briefing server.",
+        hint: "AI News Briefing runs in this app; see .env.example.",
         days: [],
       },
       { status: 502 }

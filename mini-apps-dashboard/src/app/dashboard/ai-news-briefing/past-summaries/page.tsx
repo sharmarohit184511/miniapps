@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { FigmaPastSummariesScreen } from "@/components/figma-home/FigmaPastSummariesScreen";
-
-function getBriefingAppUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_AI_NEWS_BRIEFING_URL?.replace(/\/$/, "") ??
-    "http://localhost:3001"
-  );
-}
+import { getBriefingAppUrl } from "@/lib/briefing-public-url";
 
 export const metadata = {
   title: "Past summaries | AI News Briefing | Mini Apps",
@@ -28,14 +22,23 @@ export default function PastSummariesPage() {
         <span className="hidden min-w-0 truncate text-center text-[11px] font-medium text-[#013e7c]/80 sm:block sm:text-xs">
           Past summaries
         </span>
-        <a
-          href={briefingUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-full bg-[#0078ad] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#006a9a] sm:px-4 sm:text-sm"
-        >
-          Open full app ↗
-        </a>
+        {briefingUrl.startsWith("http") ? (
+          <a
+            href={briefingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-full bg-[#0078ad] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#006a9a] sm:px-4 sm:text-sm"
+          >
+            Open full app ↗
+          </a>
+        ) : (
+          <Link
+            href={briefingUrl}
+            className="shrink-0 rounded-full bg-[#0078ad] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#006a9a] sm:px-4 sm:text-sm"
+          >
+            Open full app
+          </Link>
+        )}
       </header>
 
       <div className="flex justify-center px-2 pb-10 pt-14 sm:px-4 sm:pt-16">

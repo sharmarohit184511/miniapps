@@ -1,11 +1,5 @@
 import { AiNewsBriefingJourneyShell } from "@/components/figma-home/AiNewsBriefingJourneyShell";
-
-function getBriefingAppUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_AI_NEWS_BRIEFING_URL?.replace(/\/$/, "") ??
-    "http://localhost:3001"
-  );
-}
+import { getBriefingAppUrl } from "@/lib/briefing-public-url";
 
 export const metadata = {
   title: "Home | Mini Apps",

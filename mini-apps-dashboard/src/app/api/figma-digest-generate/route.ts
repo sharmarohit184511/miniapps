@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBriefingApiBase } from "@/lib/briefing-api-base";
+import { getBriefingApiOrigin } from "@/lib/briefing-api-base";
 
 export async function POST(request: NextRequest) {
   let body: { date?: string; lang?: string };
@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const base = getBriefingApiBase();
+  const base = getBriefingApiOrigin(request);
   try {
     const res = await fetch(`${base}/api/figma-daily-digest`, {
       method: "POST",
