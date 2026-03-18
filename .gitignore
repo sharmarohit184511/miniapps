@@ -2,6 +2,8 @@
 # Root shim: local yarn/npm artifacts (optional)
 /package-lock.json
 /yarn.lock
+# Old shim folder (local only)
+/src/
 
 .DS_Store
 *.pem
