@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS briefings (
   audio_url TEXT,
   error_message TEXT,
   pipeline_progress JSONB,
+  figma_digest_date DATE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -30,6 +31,8 @@ CREATE TABLE IF NOT EXISTS briefing_sources (
 
 CREATE INDEX IF NOT EXISTS idx_briefing_sources_briefing_id ON briefing_sources(briefing_id);
 CREATE INDEX IF NOT EXISTS idx_briefings_created_at ON briefings(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_briefings_figma_digest_date
+  ON briefings (figma_digest_date, tts_provider, output_language, status);
 
 -- Trigger to update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()

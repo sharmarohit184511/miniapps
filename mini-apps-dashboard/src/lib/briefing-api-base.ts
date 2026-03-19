@@ -111,3 +111,14 @@ export function getBriefingApiBase(): string {
   }
   return "http://127.0.0.1:3000";
 }
+
+/** Make stored briefing audio paths usable from the browser (same logic as briefing-status API). */
+export function absoluteBriefingAudioUrl(
+  base: string,
+  audioUrl: string | null | undefined
+): string | null {
+  if (!audioUrl || typeof audioUrl !== "string") return null;
+  const trimmed = base.replace(/\/$/, "");
+  if (/^https?:\/\//i.test(audioUrl)) return audioUrl;
+  return `${trimmed}${audioUrl.startsWith("/") ? "" : "/"}${audioUrl}`;
+}

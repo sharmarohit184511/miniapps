@@ -7,7 +7,8 @@
     "dev:queue": "concurrently -k -n dashboard,worker -c blue,green \"next dev -p 3000\" \"npm run worker\"",
     "dev:127": "next dev -p 3000 -H 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "postbuild": "cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "worker": "npx tsx src/workers/briefing-worker.ts"
   },

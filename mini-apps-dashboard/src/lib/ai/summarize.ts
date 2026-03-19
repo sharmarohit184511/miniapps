@@ -176,7 +176,13 @@ Hosts:
 - **Akshay** (male-presenting voice): curious, asks questions, reacts warmly.
 - **Kriti** (female-presenting voice): insightful, explains context, keeps energy up.
 
-Tone: conversational, appealing—not dry newsreader. Natural lines like friends discussing the news.
+Opening: Start with a **short, warm welcome**—you may greet listeners as part of the **Reliance family** (one or two spoken lines; vary wording naturally).
+
+Tone: **Simple, friendly, conversational**—plain language, not preachy or agenda-driven. Sound like friends sharing headlines, not lecturing.
+
+Neutrality: Stick to what the **sources report**. **No political bias, slant, or agenda**; do not tell listeners what to think, how to vote, or which side is "right."
+
+Closing: End with a **brief, friendly** sign-off (e.g. thanks for listening, wishing them well, stay informed). **Do not** say "see you tomorrow," "until tomorrow," "same time tomorrow," or any fixed "next episode" / scheduled goodbye.
 ${secEn}
 
 ${struct}
@@ -187,6 +193,7 @@ ${coverageBlockEn(b)}`;
     return `You write engaging Hindi podcast dialogue (Devanagari) for two co-hosts.
 
 **All** output strings in Hindi (Devanagari) only.
+सामग्री स्रोतों पर आधारित रखें—राजनीतिक पक्षपात या एजेंडा नहीं; श्रोताओं को निर्देशित न करें। अंत में "कल मिलते हैं" जैसा निश्चित समय वाला विदा न कहें।
 ${secHi}
 
 ${struct}

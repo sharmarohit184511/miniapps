@@ -6,9 +6,17 @@ services:
     runtime: node
     plan: free # change if needed
     rootDir: mini-apps-dashboard
-    # Install + production build (plain `yarn` alone does not run `next build`)
-    buildCommand: npm ci && npm run build
-    startCommand: npm run start
+    # Timed phases (logs real/user/sys) + production build; postbuild copies static assets for standalone
+    buildCommand: time npm ci && time npm run build
+    # Standalone server (see next.config.ts output + package.json postbuild)
+    startCommand: node .next/standalone/server.js
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=4096"
+      # React Compiler off on Render for faster builds; set to "true" in dashboard to re-enable
+      - key: ENABLE_REACT_COMPILER
+        value: "false"

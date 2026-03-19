@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBriefingApiOrigin } from "@/lib/briefing-api-base";
-
-function absoluteAudioUrl(
-  base: string,
-  audioUrl: string | null | undefined
-): string | null {
-  if (!audioUrl || typeof audioUrl !== "string") return null;
-  if (/^https?:\/\//i.test(audioUrl)) return audioUrl;
-  return `${base}${audioUrl.startsWith("/") ? "" : "/"}${audioUrl}`;
-}
+import { absoluteBriefingAudioUrl, getBriefingApiOrigin } from "@/lib/briefing-api-base";
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +18,7 @@ export async function GET(
     if (!res.ok) {
       return NextResponse.json(data, { status: res.status });
     }
-    const audio_url = absoluteAudioUrl(base, data.audio_url as string | undefined);
+    const audio_url = absoluteBriefingAudioUrl(base, data.audio_url as string | undefined);
     return NextResponse.json(
       { ...data, audio_url },
       {

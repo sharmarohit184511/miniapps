@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
+import { absoluteBriefingAudioUrl, getBriefingApiOrigin } from "@/lib/briefing-api-base";
 import { getNewsApiKey } from "@/lib/news/news-key";
 import { NewsApiError } from "@/lib/news/newsapi";
 import { fetchFigmaDayArticles, pickBriefingUrlsFromDay } from "@/lib/figma-digest/fetch-day-articles";
-import { createBriefing } from "@/lib/db/briefings";
+import { createBriefing, findFigmaDigestBriefingForReuse } from "@/lib/db/briefings";
 import { briefingQueue, isQueueAvailable } from "@/lib/queue/client";
 import { runPipeline } from "@/lib/pipeline/run";
 import type { TtsProvider } from "@/types";
@@ -25,6 +26,32 @@ export async function POST(request: NextRequest) {
   const date = (body.date?.trim() || todayYmd()).slice(0, 10);
   if (!DATE_RE.test(date)) {
     return NextResponse.json({ error: "Invalid date (use YYYY-MM-DD)" }, { status: 400 });
+  }
+
+  const ttsProvider: TtsProvider =
+    body.ttsProvider === "microsoft" ? "microsoft" : "elevenlabs";
+
+  const reuse = await findFigmaDigestBriefingForReuse(date, ttsProvider, "en");
+  const base = getBriefingApiOrigin(request);
+
+  if (reuse?.kind === "completed") {
+    const audio_url = absoluteBriefingAudioUrl(base, reuse.audio_url);
+    return NextResponse.json({
+      briefingId: reuse.id,
+      date,
+      cached: true,
+      queued: false,
+      ...(audio_url ? { audio_url } : {}),
+    });
+  }
+
+  if (reuse?.kind === "in_progress") {
+    return NextResponse.json({
+      briefingId: reuse.id,
+      date,
+      inProgress: true,
+      queued: false,
+    });
   }
 
   const apiKey = getNewsApiKey();
@@ -56,10 +83,9 @@ export async function POST(request: NextRequest) {
     briefing_section: p.sectionTitle,
   }));
 
-  const ttsProvider: TtsProvider =
-    body.ttsProvider === "microsoft" ? "microsoft" : "elevenlabs";
-
-  const briefingId = await createBriefing(sources, ttsProvider, "en");
+  const briefingId = await createBriefing(sources, ttsProvider, "en", {
+    figmaDigestDate: date,
+  });
   if (!briefingId) {
     return NextResponse.json({ error: "Failed to create briefing" }, { status: 500 });
   }

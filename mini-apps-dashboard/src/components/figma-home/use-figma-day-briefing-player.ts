@@ -208,7 +208,6 @@ export function useFigmaDayBriefingPlayer() {
 
       setBriefingErr((prev) => ({ ...prev, [date]: "" }));
       briefingInFlightRef.current = date;
-      setGeneratingFor(date);
       try {
         const res = await fetchWithTimeout("/api/figma-day-briefing", {
           method: "POST",
@@ -216,7 +215,13 @@ export function useFigmaDayBriefingPlayer() {
           body: JSON.stringify({ date }),
           timeoutMs: 120_000,
         });
-        const j = (await res.json()) as { error?: string; briefingId?: string };
+        const j = (await res.json()) as {
+          error?: string;
+          briefingId?: string;
+          cached?: boolean;
+          inProgress?: boolean;
+          audio_url?: string;
+        };
         if (!res.ok) {
           setBriefingErr((prev) => ({
             ...prev,
@@ -229,6 +234,45 @@ export function useFigmaDayBriefingPlayer() {
           setBriefingErr((prev) => ({ ...prev, [date]: "No briefing id" }));
           return;
         }
+
+        const directUrl =
+          j.cached &&
+          typeof j.audio_url === "string" &&
+          j.audio_url.trim().length > 0
+            ? j.audio_url.trim()
+            : "";
+
+        if (directUrl && el) {
+          try {
+            el.pause();
+            currentAudioDateRef.current = date;
+            el.src = directUrl;
+            audioUrlByDateRef.current[date] = directUrl;
+            setActiveAudioDate(date);
+            setBriefingErr((prev) => ({ ...prev, [date]: "" }));
+            await el.play();
+          } catch (playErr) {
+            const name =
+              playErr && typeof playErr === "object" && "name" in playErr
+                ? String((playErr as { name: string }).name)
+                : "";
+            if (name === "NotAllowedError") {
+              setBriefingErr((prev) => ({
+                ...prev,
+                [date]:
+                  "Ready — tap play again to listen (browser blocked auto-play).",
+              }));
+            } else {
+              setBriefingErr((prev) => ({
+                ...prev,
+                [date]: "Could not start playback — tap play to try again.",
+              }));
+            }
+          }
+          return;
+        }
+
+        setGeneratingFor(date);
         await pollUntilAudio(id, date);
       } catch (e) {
         const msg =
