@@ -22,8 +22,6 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
   const [days, setDays] = useState<DayBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [summaryOpen, setSummaryOpen] = useState<Record<string, boolean>>({});
-
   const {
     audioRef,
     generatingFor,
@@ -107,13 +105,9 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
                 generatingFor={generatingFor}
                 activeAudioDate={activeAudioDate}
                 playing={playing}
-                summaryExpanded={summaryOpen[day.date] ?? false}
                 briefingErr={briefingErr}
                 audioDurationByDate={audioDurationByDate}
                 onPlay={startConversationBriefing}
-                onToggleSummary={(d) =>
-                  setSummaryOpen((prev) => ({ ...prev, [d]: !prev[d] }))
-                }
               />
             </div>
           ))}
@@ -123,7 +117,7 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
         )}
       </main>
 
-      <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[360px] -translate-x-1/2 bg-white">
+      <div className="fixed bottom-0 left-1/2 z-50 w-full max-w-[360px] -translate-x-1/2 bg-white shadow-[0_-8px_32px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.06]">
         <AiNewsBriefingBottomWidget briefingUrl={briefingUrl} />
         <FigmaBottomNav />
       </div>

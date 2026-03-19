@@ -24,10 +24,13 @@ function fmtClock(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Light Figma mini player — matches feed blues / white cards */
 export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
   const [expanded, setExpanded] = useState(false);
   const {
     state,
+    feedMiniBar,
+    feedAudio,
     playing,
     playbackRate,
     progress,
@@ -38,150 +41,267 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
   } = useFigmaBriefing();
   const speeds = [0.75, 1, 1.25, 1.5] as const;
 
-  const ready = Boolean(state.audioUrl && state.status === "ready");
+  const iframeReady = Boolean(state.audioUrl && state.status === "ready");
+  /** Prefer feed conversation audio when it is the active session (vs iframe embed). */
+  const useFeed = Boolean(
+    feedAudio?.active &&
+      (feedAudio.playing ||
+        feedAudio.durationSec > 0 ||
+        feedAudio.currentSec > 0)
+  );
+
+  const effectivePlaying = useFeed ? Boolean(feedAudio?.playing) : playing;
+  const effectiveProgress = useMemo(() => {
+    if (useFeed && feedAudio) {
+      return {
+        currentSec: feedAudio.currentSec,
+        durationSec: feedAudio.durationSec,
+      };
+    }
+    return progress;
+  }, [useFeed, feedAudio, progress]);
+
+  const effectiveToggle = useFeed
+    ? feedAudio?.togglePlay ?? (() => {})
+    : togglePlay;
+  const effectiveSeekBy = useFeed
+    ? feedAudio?.seekBy ?? (() => {})
+    : seekBy;
+  const effectiveSeekTo = useFeed
+    ? feedAudio?.seekTo ?? (() => {})
+    : seekTo;
+
+  const ready = iframeReady || useFeed;
   const pct = useMemo(() => {
-    const { currentSec, durationSec } = progress;
+    const { currentSec, durationSec } = effectiveProgress;
     if (!durationSec || durationSec <= 0) return 0;
     return Math.min(100, (currentSec / durationSec) * 100);
-  }, [progress]);
+  }, [effectiveProgress]);
 
-  const subtitle = state.status === "generating"
-    ? "Preparing…"
-    : state.status === "error"
-      ? "Unavailable"
-      : ready
-        ? `${fmtClock(progress.currentSec)} / ${fmtClock(progress.durationSec || state.durationSec || 0)}`
-        : state.durationLabel;
+  const timeLine = useMemo(() => {
+    if (useFeed && feedAudio) {
+      if (feedAudio.playing && feedAudio.durationSec > 0) {
+        return `${fmtClock(feedAudio.currentSec)} / ${fmtClock(feedAudio.durationSec)}`;
+      }
+      if (feedAudio.playing) return "Playing…";
+      if (feedAudio.durationSec > 0) return "Paused";
+      return "Loading…";
+    }
+    if (state.status === "generating") return "Preparing…";
+    if (state.status === "error") return "Unavailable";
+    if (iframeReady && playing) {
+      return `${fmtClock(progress.currentSec)} / ${fmtClock(progress.durationSec || state.durationSec || 0)}`;
+    }
+    if (iframeReady) return "Ready";
+    return state.durationLabel || "Tap to listen";
+  }, [
+    useFeed,
+    feedAudio,
+    state.status,
+    state.durationLabel,
+    state.durationSec,
+    iframeReady,
+    playing,
+    progress.currentSec,
+    progress.durationSec,
+  ]);
 
-  return (
-    <div className="border-t border-[#e5f1f7] bg-[#121212] text-white shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
-      {/* Progress bar */}
-      <div
-        role="slider"
-        aria-valuenow={Math.round(progress.currentSec)}
-        aria-valuemin={0}
-        aria-valuemax={Math.round(progress.durationSec) || 100}
-        className="h-1 w-full cursor-pointer bg-white/15"
-        onClick={(e) => {
-          if (!ready || !progress.durationSec) return;
-          const rect = e.currentTarget.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          seekTo((x / rect.width) * progress.durationSec);
-        }}
-      >
-        <div
-          className="h-full bg-[#1ed760] transition-[width] duration-150 ease-linear"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+  const eyebrow = feedMiniBar?.eyebrow ?? "Briefing";
+  const title = feedMiniBar?.title ?? state.headline;
+  const subLine = feedMiniBar?.subline ?? timeLine;
 
-      <div className="px-2 py-2">
-        <div className="flex items-center gap-2">
-          <div className="size-10 shrink-0 rounded bg-gradient-to-br from-[#8e116f] to-[#013e7c]" />
+  const onPrimaryListen = () => {
+    if (ready) {
+      void effectiveToggle();
+      return;
+    }
+    setExpanded(true);
+  };
 
+  if (!effectivePlaying) {
+    return (
+      <div className="border-b border-[#e8eef2] bg-white">
+        <div className="flex items-center gap-2 px-2 py-2">
+          <div
+            className="h-10 w-1 shrink-0 rounded-full bg-[#0078ad] motion-safe:animate-pulse"
+            aria-hidden
+          />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold leading-tight">
-              {state.headline}
+            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#0078ad]">
+              {eyebrow}
             </p>
-            <p className="truncate text-[11px] text-white/60">{subtitle}</p>
+            <p className="truncate text-[13px] font-bold leading-tight text-[#141414]">
+              {title}
+            </p>
+            <p className="truncate text-[10px] text-black/45">{subLine}</p>
           </div>
-
-          <div className="flex shrink-0 items-center gap-0.5">
-            <button
-              type="button"
-              disabled={!ready}
-              onClick={() => seekBy(-10)}
-              className="rounded-full p-1.5 text-white/90 hover:bg-white/10 disabled:opacity-30"
-              aria-label="Back 10 seconds"
-            >
-              <SkipBack className="size-5" strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              disabled={!ready}
-              onClick={togglePlay}
-              className="flex size-9 items-center justify-center rounded-full bg-white text-black hover:scale-105 disabled:opacity-30"
-              aria-label={playing ? "Pause" : "Play"}
-            >
-              {playing ? (
-                <Pause className="size-4" fill="currentColor" />
-              ) : (
-                <Play className="size-4 translate-x-0.5 pl-px" fill="currentColor" />
-              )}
-            </button>
-            <button
-              type="button"
-              disabled={!ready}
-              onClick={() => seekBy(10)}
-              className="rounded-full p-1.5 text-white/90 hover:bg-white/10 disabled:opacity-30"
-              aria-label="Forward 10 seconds"
-            >
-              <SkipForward className="size-5" strokeWidth={2} />
-            </button>
-            <a
-              href={state.fullAppNote ?? briefingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full p-1.5 text-white/70 hover:bg-white/10"
-              aria-label="Open full app"
-            >
-              <ExternalLink className="size-4" />
-            </a>
-            <button
-              type="button"
-              onClick={() => setExpanded((e) => !e)}
-              className="rounded-full p-1.5 text-white/70 hover:bg-white/10"
-              aria-expanded={expanded}
-              aria-label={expanded ? "Collapse" : "Expand briefing"}
-            >
-              {expanded ? (
-                <ChevronUp className="size-4" />
-              ) : (
-                <ChevronDown className="size-4" />
-              )}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onPrimaryListen}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0078ad] text-white shadow-sm transition hover:bg-[#006a99] active:scale-95"
+            aria-label={ready ? "Play" : "Open player"}
+          >
+            <Play className="size-4 translate-x-px fill-current" aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-[#013e7c] hover:bg-[#f5fafd]"
+            aria-expanded={expanded}
+            aria-label={expanded ? "Hide embed" : "Show embed"}
+          >
+            {expanded ? (
+              <ChevronUp className="size-4" strokeWidth={2.5} />
+            ) : (
+              <ChevronDown className="size-4" strokeWidth={2.5} />
+            )}
+          </button>
         </div>
 
         <div
           className={cn(
-            "border-white/10",
-            expanded && "mt-2 space-y-2 border-t pt-2"
+            "overflow-hidden border-t border-[#e8eef2] transition-[max-height] duration-200",
+            expanded ? "max-h-[200px]" : "max-h-0 border-t-0"
           )}
         >
-          {expanded && (
-            <div className="flex flex-wrap justify-center gap-1">
-              {speeds.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  disabled={!ready}
-                  onClick={() => setPlaybackRate(r)}
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-[10px] font-semibold disabled:opacity-40",
-                    playbackRate === r
-                      ? "bg-[#1ed760] text-black"
-                      : "bg-white/10 text-white/90"
-                  )}
-                >
-                  {r}×
-                </button>
-              ))}
-            </div>
+          <iframe
+            title="AI News Briefing"
+            src={`${briefingUrl}${briefingUrl.includes("?") ? "&" : "?"}figma_demo=1`}
+            className="h-[180px] w-full bg-[#f5fafd]"
+            allow="clipboard-read; clipboard-write; autoplay"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-b border-[#e8eef2] bg-white text-[#141414]">
+      <div
+        role="slider"
+        aria-valuenow={Math.round(effectiveProgress.currentSec)}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(effectiveProgress.durationSec) || 100}
+        className="h-1 w-full cursor-pointer bg-[#e8eef2]"
+        onClick={(e) => {
+          if (!ready || !effectiveProgress.durationSec) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          effectiveSeekTo((x / rect.width) * effectiveProgress.durationSec);
+        }}
+      >
+        <div
+          className="h-full bg-[#0078ad] transition-[width] duration-150 ease-linear"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <div className="flex items-center gap-1 px-1.5 py-1.5">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#eef6fb]">
+          <Play className="size-3.5 text-[#0078ad]" fill="currentColor" aria-hidden />
+        </div>
+
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#0078ad]">
+            {eyebrow}
+          </p>
+          <p className="truncate text-[12px] font-bold text-[#141414]">{title}</p>
+          <p className="truncate text-[10px] text-black/45">{timeLine}</p>
+        </div>
+
+        <button
+          type="button"
+          disabled={!ready}
+          onClick={() => effectiveSeekBy(-10)}
+          className="rounded-full p-1.5 text-[#013e7c] hover:bg-[#f5fafd] disabled:opacity-30"
+          aria-label="Back 10 seconds"
+        >
+          <SkipBack className="size-4" strokeWidth={2.2} />
+        </button>
+        <button
+          type="button"
+          disabled={!ready}
+          onClick={effectiveToggle}
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0078ad] text-white shadow-sm hover:bg-[#006a99] disabled:opacity-30"
+          aria-label={effectivePlaying ? "Pause" : "Play"}
+        >
+          {effectivePlaying ? (
+            <Pause className="size-4" fill="currentColor" />
+          ) : (
+            <Play className="size-4 translate-x-px fill-current pl-px" />
           )}
-          <div className="relative min-h-0 overflow-visible">
-            <iframe
-              title="AI News Briefing"
-              src={`${briefingUrl}${briefingUrl.includes("?") ? "&" : "?"}figma_demo=1`}
-              className={cn(
-                "w-full bg-white transition-opacity duration-200",
-                expanded
-                  ? "relative z-10 mt-2 h-[220px] rounded-lg border border-white/10 opacity-100"
-                  : "pointer-events-none absolute bottom-full left-0 right-0 z-0 mb-0 h-[280px] max-h-[280px] opacity-0"
-              )}
-              allow="clipboard-read; clipboard-write; autoplay"
-            />
+        </button>
+        <button
+          type="button"
+          disabled={!ready}
+          onClick={() => effectiveSeekBy(10)}
+          className="rounded-full p-1.5 text-[#013e7c] hover:bg-[#f5fafd] disabled:opacity-30"
+          aria-label="Forward 10 seconds"
+        >
+          <SkipForward className="size-4" strokeWidth={2.2} />
+        </button>
+        <a
+          href={state.fullAppNote ?? briefingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full p-1.5 text-[#013e7c] hover:bg-[#f5fafd]"
+          aria-label="Open full app"
+        >
+          <ExternalLink className="size-3.5" />
+        </a>
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="rounded-full p-1.5 text-[#013e7c] hover:bg-[#f5fafd]"
+          aria-expanded={expanded}
+          aria-label={expanded ? "Collapse" : "More"}
+        >
+          {expanded ? (
+            <ChevronUp className="size-3.5" />
+          ) : (
+            <ChevronDown className="size-3.5" />
+          )}
+        </button>
+      </div>
+
+      <div
+        className={cn(
+          "border-[#e8eef2]",
+          expanded && "space-y-1.5 border-t px-1.5 pb-1.5 pt-1"
+        )}
+      >
+        {expanded && !useFeed && (
+          <div className="flex flex-wrap justify-center gap-0.5">
+            {speeds.map((r) => (
+              <button
+                key={r}
+                type="button"
+                disabled={!iframeReady}
+                onClick={() => setPlaybackRate(r)}
+                className={cn(
+                  "rounded-full px-2 py-px text-[9px] font-bold disabled:opacity-40",
+                  playbackRate === r
+                    ? "bg-[#0078ad] text-white"
+                    : "bg-[#eef6fb] text-[#013e7c]"
+                )}
+              >
+                {r}×
+              </button>
+            ))}
           </div>
+        )}
+        <div className="relative min-h-0 overflow-visible">
+          <iframe
+            title="AI News Briefing"
+            src={`${briefingUrl}${briefingUrl.includes("?") ? "&" : "?"}figma_demo=1`}
+            className={cn(
+              "w-full bg-[#f5fafd] transition-opacity duration-200",
+              expanded
+                ? "relative z-10 h-[160px] rounded-md border border-[#e5f1f7] opacity-100"
+                : "pointer-events-none absolute bottom-full left-0 right-0 z-0 mb-0 h-[200px] max-h-[200px] opacity-0"
+            )}
+            allow="clipboard-read; clipboard-write; autoplay"
+          />
         </div>
       </div>
     </div>

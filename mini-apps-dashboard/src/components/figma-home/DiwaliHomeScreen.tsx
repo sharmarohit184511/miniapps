@@ -28,7 +28,8 @@ type Props = {
 
 /** Manager home — aligned to Figma node 1:30080 (Figma MCP) */
 function DiwaliHomeScreenInner({ briefingUrl }: Props) {
-  const { playing } = useFigmaBriefing();
+  const { playing, feedAudio } = useFigmaBriefing();
+  const anyAudioPlaying = playing || Boolean(feedAudio?.playing);
 
   const announcements = [
     {
@@ -156,7 +157,8 @@ function DiwaliHomeScreenInner({ briefingUrl }: Props) {
       <main
         className={cn(
           "relative -mt-3 flex-1 overflow-y-auto rounded-t-[20px] bg-white pb-4",
-          playing ? "pb-[260px]" : "pb-[120px]"
+          /* Compact briefing strip + bottom nav */
+          anyAudioPlaying ? "pb-[260px]" : "pb-[168px]"
         )}
       >
         <div className="flex justify-center py-3">

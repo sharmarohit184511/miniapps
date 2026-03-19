@@ -4,15 +4,10 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import {
-  normalizeDialogueSpeaker,
-  dialogueSpeakerLabel,
-} from "@/lib/dialogue-speakers";
 
 export type AudioTranscript = {
   headline?: string;
   bullets?: string[];
-  /** Full script (e.g. Akshay: … / Kriti: …) */
   script?: string;
   dialogue?: { speaker: string; text: string }[];
 };
@@ -24,6 +19,7 @@ type Props = {
   autoPlay?: boolean;
   /** Compact layout for Figma iframe */
   compact?: boolean;
+  /** @deprecated Transcript UI removed; prop ignored */
   transcript?: AudioTranscript | null;
 };
 
@@ -35,13 +31,12 @@ function formatTime(seconds: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function AudioPlayer({ src, className, autoPlay, compact, transcript }: Props) {
+export function AudioPlayer({ src, className, autoPlay, compact }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRateState] = useState(1);
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
 
   const applyPlaybackRate = useCallback((rate: number) => {
     const el = audioRef.current;
@@ -93,12 +88,6 @@ export function AudioPlayer({ src, className, autoPlay, compact, transcript }: P
   }, [src, playbackRate]);
 
   const progress = duration > 0 && Number.isFinite(duration) ? (currentTime / duration) * 100 : 0;
-  const hasTranscript =
-    transcript &&
-    (transcript.headline ||
-      (transcript.bullets?.length ?? 0) > 0 ||
-      (transcript.script?.trim() ?? "") ||
-      (transcript.dialogue?.length ?? 0) > 0);
 
   const controlsRow = (
     <div
@@ -169,18 +158,6 @@ export function AudioPlayer({ src, className, autoPlay, compact, transcript }: P
           </Button>
         ))}
       </div>
-      {hasTranscript && (
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className={cn(compact ? "h-8 text-xs" : "")}
-          onClick={() => setTranscriptOpen(true)}
-          aria-label="Show transcript"
-        >
-          Transcript
-        </Button>
-      )}
     </div>
   );
 
@@ -198,58 +175,6 @@ export function AudioPlayer({ src, className, autoPlay, compact, transcript }: P
           <span>{formatTime(Number.isFinite(duration) ? duration : 0)}</span>
         </div>
       </div>
-
-      {transcriptOpen && hasTranscript && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Transcript"
-          onClick={() => setTranscriptOpen(false)}
-        >
-          <div
-            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border bg-card p-5 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <h3 className="text-lg font-semibold">Transcript</h3>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setTranscriptOpen(false)}>
-                Close
-              </Button>
-            </div>
-            {transcript.headline && (
-              <p className="mb-3 text-base font-semibold leading-snug">{transcript.headline}</p>
-            )}
-            {transcript.bullets && transcript.bullets.length > 0 && (
-              <ul className="mb-4 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                {transcript.bullets.map((b, i) => (
-                  <li key={i}>{b}</li>
-                ))}
-              </ul>
-            )}
-            {transcript.dialogue && transcript.dialogue.length > 0 ? (
-              <div className="space-y-3 text-sm">
-                {transcript.dialogue.map((t, i) => (
-                  <p key={i}>
-                    <span className="font-semibold capitalize text-primary">
-                      {(() => {
-                        const id = normalizeDialogueSpeaker(t.speaker);
-                        return id ? dialogueSpeakerLabel(id) : t.speaker;
-                      })()}
-                      :{" "}
-                    </span>
-                    {t.text}
-                  </p>
-                ))}
-              </div>
-            ) : transcript.script ? (
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
-                {transcript.script}
-              </pre>
-            ) : null}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

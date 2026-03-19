@@ -6,21 +6,7 @@ import { SourceInput, type SourceEntry } from "./source-input";
 import { TopicNewsPanel } from "./topic-news-panel";
 import { AudioPlayer } from "./audio-player";
 import { useBriefingStore } from "@/store/briefing";
-import type { TtsProvider, SummaryOutput } from "@/types";
-import type { AudioTranscript } from "./audio-player";
-
-function transcriptFromSummary(s: SummaryOutput | null | undefined): AudioTranscript | null {
-  if (!s) return null;
-  return {
-    headline: s.headline,
-    bullets: s.summary_points,
-    script: s.audio_script,
-    dialogue: s.dialogue_turns?.map((t) => ({
-      speaker: t.speaker,
-      text: t.text,
-    })),
-  };
-}
+import type { TtsProvider } from "@/types";
 import { FIGMA_DEMO_ARTICLE, FIGMA_DEMO_HEADLINE } from "@/lib/figma-demo-article";
 import { BriefingProgressPanel } from "@/components/briefing-progress";
 
@@ -280,12 +266,7 @@ export function BriefingForm({ initialBriefingId, figmaEmbedDemo }: Props) {
                 Player in frame
               </summary>
               <div className="pt-2">
-                <AudioPlayer
-                  src={current.audio_url}
-                  className="gap-2"
-                  compact
-                  transcript={transcriptFromSummary(current.summary)}
-                />
+                <AudioPlayer src={current.audio_url} className="gap-2" compact />
               </div>
             </details>
           </div>
@@ -404,10 +385,7 @@ export function BriefingForm({ initialBriefingId, figmaEmbedDemo }: Props) {
           {current.summary?.headline && (
             <h3 className="text-lg font-semibold leading-snug sm:text-base">{current.summary.headline}</h3>
           )}
-          <AudioPlayer
-            src={current.audio_url}
-            transcript={transcriptFromSummary(current.summary)}
-          />
+          <AudioPlayer src={current.audio_url} />
         </div>
       )}
     </div>

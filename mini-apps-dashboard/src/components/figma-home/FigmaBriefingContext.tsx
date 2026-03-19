@@ -17,12 +17,13 @@ export type FigmaBriefingState = {
   durationLabel: string;
   audioUrl: string | null;
   status: "generating" | "ready" | "error";
-  /** Full app URL for transcript / full controls */
+  /** Full app URL for opening the full briefing app */
   fullAppNote?: string;
 };
 
+/** Shown in the mini player when the feed has not published metadata yet. */
 const INITIAL_GLIMPSE =
-  "Reliance Industries is working with half a dozen banks for the planned share sale of Jio Platforms Ltd., with more advisers likely to be added soon…";
+  "Use the news feed to play a two-host briefing for each day, or expand below for the embed.";
 
 function formatDuration(sec: number | null): string {
   if (sec == null || !Number.isFinite(sec) || sec <= 0) return "—";
@@ -32,13 +33,31 @@ function formatDuration(sec: number | null): string {
 }
 
 const defaultState: FigmaBriefingState = {
-  headline: "Jio Platforms IPO",
+  headline: "AI News Briefing",
   glimpse: INITIAL_GLIMPSE,
-  sourceCount: 1,
+  sourceCount: 0,
   durationSec: null,
-  durationLabel: "~1–3 min est.",
+  durationLabel: "—",
   audioUrl: null,
-  status: "generating",
+  status: "ready",
+};
+
+/** Synced from FigmaNewsFeed — date/day lines for the sticky mini player. */
+export type FeedMiniBarMeta = {
+  eyebrow: string;
+  title: string;
+  subline: string;
+};
+
+/** Live feed conversation audio (separate from iframe / postMessage audio). */
+export type FeedAudioSnap = {
+  active: boolean;
+  playing: boolean;
+  currentSec: number;
+  durationSec: number;
+  togglePlay: () => void;
+  seekBy: (deltaSec: number) => void;
+  seekTo: (sec: number) => void;
 };
 
 export type FigmaAudioProgress = {
@@ -48,6 +67,10 @@ export type FigmaAudioProgress = {
 
 type Ctx = {
   state: FigmaBriefingState;
+  feedMiniBar: FeedMiniBarMeta | null;
+  setFeedMiniBar: (v: FeedMiniBarMeta | null) => void;
+  feedAudio: FeedAudioSnap | null;
+  setFeedAudio: (v: FeedAudioSnap | null) => void;
   playing: boolean;
   playbackRate: number;
   progress: FigmaAudioProgress;
@@ -73,6 +96,8 @@ export function FigmaBriefingProvider({
   briefingUrl: string;
 }) {
   const [state, setState] = useState<FigmaBriefingState>(defaultState);
+  const [feedMiniBar, setFeedMiniBar] = useState<FeedMiniBarMeta | null>(null);
+  const [feedAudio, setFeedAudio] = useState<FeedAudioSnap | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRateState] = useState(1);
   const [progress, setProgress] = useState<FigmaAudioProgress>({
@@ -204,6 +229,10 @@ export function FigmaBriefingProvider({
   const value = useMemo(
     () => ({
       state,
+      feedMiniBar,
+      setFeedMiniBar,
+      feedAudio,
+      setFeedAudio,
       playing,
       playbackRate,
       progress,
@@ -214,6 +243,8 @@ export function FigmaBriefingProvider({
     }),
     [
       state,
+      feedMiniBar,
+      feedAudio,
       playing,
       playbackRate,
       progress,

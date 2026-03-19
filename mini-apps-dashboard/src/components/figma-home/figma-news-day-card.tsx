@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, FileText, Loader2, Pause, Play } from "lucide-react";
+import { Loader2, Pause, Play } from "lucide-react";
 
 export type DayBlock = {
   date: string;
@@ -31,7 +31,7 @@ function formatBriefingMinutes(seconds: number): string {
 }
 
 /** Short topic line from digest sections / first headline. */
-function buildTopicTeaser(day: DayBlock): string {
+export function buildTopicTeaser(day: DayBlock): string {
   const titles = day.sections
     .map((s) => s.title?.trim())
     .filter(Boolean) as string[];
@@ -53,7 +53,7 @@ function tertiaryTodayLine(
   }
 ): string {
   if (ctx.generating) {
-    return "Generating audio briefing — usually 1–2 min";
+    return "Making your briefing (~1–2 min)…";
   }
   const teaser = buildTopicTeaser(day);
   if (ctx.isActivePlaying) {
@@ -61,20 +61,16 @@ function tertiaryTodayLine(
       ctx.durationSec !== undefined
         ? `${formatBriefingMinutes(ctx.durationSec)} · `
         : "";
-    return truncateTertiary(
-      `Now playing · ${dur}Akshay & Kriti · English`
-    );
+    return truncateTertiary(`Playing · ${dur}two hosts`);
   }
   if (ctx.durationSec !== undefined) {
     const head = teaser ? `${teaser} · ` : "";
-    return truncateTertiary(
-      `${head}${formatBriefingMinutes(ctx.durationSec)} · English`
-    );
+    return truncateTertiary(`${head}${formatBriefingMinutes(ctx.durationSec)}`);
   }
   if (teaser) {
-    return truncateTertiary(`${teaser} · Tap play · English`);
+    return truncateTertiary(`${teaser} · tap play`);
   }
-  return "Akshay & Kriti · Tap play · English";
+  return "Tap play for audio";
 }
 
 function tertiaryPastLine(
@@ -94,7 +90,7 @@ function tertiaryPastLine(
 
 export function DayDigestPanel({ day }: { day: DayBlock }) {
   return (
-    <div className="space-y-3 border-t border-[#e5f1f7] pt-3 text-black/55">
+    <div className="space-y-3 text-black/55">
       {day.error && <p className="text-xs text-red-600">{day.error}</p>}
       {day.day_summary && (
         <div>
@@ -137,12 +133,10 @@ type DayCardProps = {
   generatingFor: string | null;
   activeAudioDate: string | null;
   playing: boolean;
-  summaryExpanded: boolean;
   briefingErr: Record<string, string>;
   /** Known audio length per date (sec), from prior playback metadata. */
   audioDurationByDate?: Record<string, number>;
   onPlay: (date: string) => void;
-  onToggleSummary: (date: string) => void;
 };
 
 export function FigmaNewsDayCard({
@@ -151,11 +145,9 @@ export function FigmaNewsDayCard({
   generatingFor,
   activeAudioDate,
   playing,
-  summaryExpanded,
   briefingErr,
   audioDurationByDate,
   onPlay,
-  onToggleSummary,
 }: DayCardProps) {
   const gen = generatingFor === day.date;
   const isActivePlaying = activeAudioDate === day.date && playing;
@@ -163,13 +155,13 @@ export function FigmaNewsDayCard({
   const durationSec = audioDurationByDate?.[day.date];
 
   return (
-    <div className="mb-4 overflow-hidden rounded-2xl border border-[#e5f1f7] bg-white shadow-sm">
-      <div className="flex items-start gap-3 bg-gradient-to-r from-[#eef6fb] to-white px-4 py-3">
+    <div className="mb-0 overflow-hidden rounded-xl bg-white/90 ring-1 ring-[#0078ad]/15">
+      <div className="flex items-center gap-2.5 px-2.5 py-2.5">
         <button
           type="button"
           disabled={!!generatingFor && !gen}
           onClick={() => onPlay(day.date)}
-          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#0078ad] text-white shadow-md transition hover:bg-[#006a99] disabled:opacity-50"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#0078ad] text-white shadow-[0_2px_8px_rgba(0,120,173,0.35)] transition hover:bg-[#006a99] active:scale-[0.97] disabled:opacity-50"
           aria-label={
             gen
               ? "Generating conversation briefing"
@@ -179,21 +171,29 @@ export function FigmaNewsDayCard({
           }
         >
           {gen ? (
-            <Loader2 className="size-6 animate-spin" />
+            <Loader2 className="size-5 animate-spin" />
           ) : isActivePlaying ? (
-            <Pause className="size-6" fill="currentColor" />
+            <Pause className="size-5" fill="currentColor" />
           ) : (
-            <Play className="size-6 translate-x-0.5" fill="currentColor" />
+            <Play className="size-5 translate-x-0.5" fill="currentColor" />
           )}
         </button>
-        <div className="min-w-0 flex-1 pt-0.5">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#0078ad]">
-            {isToday ? "Today" : day.dayLabel}
-          </p>
-          <p className="text-sm font-bold text-[#141414]">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            {isToday ? (
+              <span className="rounded-md bg-[#0078ad]/12 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-[#0078ad]">
+                Today
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-[#0078ad]/90">
+                {day.dayLabel}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[13px] font-semibold leading-tight tracking-[-0.02em] text-[#1a1a1a]">
             {isToday ? day.dayLabel : day.date}
           </p>
-          <p className="text-[10px] leading-snug text-black/45">
+          <p className="mt-0.5 text-[11px] leading-snug text-black/50">
             {isToday
               ? tertiaryTodayLine(day, {
                   generating: gen,
@@ -203,29 +203,10 @@ export function FigmaNewsDayCard({
               : tertiaryPastLine(day, durationSec)}
           </p>
           {bErr ? (
-            <p className="mt-1 text-[11px] text-red-600">{bErr}</p>
+            <p className="mt-1 text-[10px] text-red-600">{bErr}</p>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => onToggleSummary(day.date)}
-          className="shrink-0 rounded-lg border border-[#e5f1f7] bg-white p-2 text-[#013e7c] hover:bg-[#f5fafd]"
-          aria-expanded={summaryExpanded}
-          aria-label={
-            summaryExpanded ? "Hide written summary" : "Show written summary"
-          }
-        >
-          <FileText className="size-4" />
-          <ChevronDown
-            className={`mx-auto mt-0.5 size-3 transition-transform ${summaryExpanded ? "rotate-180" : ""}`}
-          />
-        </button>
       </div>
-      {summaryExpanded && (
-        <div className="px-4 pb-4">
-          <DayDigestPanel day={day} />
-        </div>
-      )}
     </div>
   );
 }

@@ -1,18 +1,39 @@
 import type { NextRequest } from "next/server";
 
+function trimSlash(u: string): string {
+  return u.replace(/\/$/, "");
+}
+
 /**
- * Public base URL for server-side `fetch()` to this app’s own API routes.
+ * `NEXT_PUBLIC_AI_NEWS_BRIEFING_URL` is for **browser** iframes (e.g. dev: briefing on :3001).
+ * Server-side routes like `/api/figma-daily-feed` must call **this deployment** — using
+ * localhost here breaks on Render (nothing listening on :3001 inside the container).
+ */
+function isLoopbackOrigin(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "[::1]" ||
+      hostname === "::1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Public base URL for server-side `fetch()` to this app’s own API routes (or split backend).
  *
  * Behind Render/Vercel/other proxies, `request.nextUrl.origin` is often wrong (e.g.
  * `https://localhost:10000` — internal bind port). Prefer env + `X-Forwarded-*`.
  */
 export function getBriefingApiOrigin(request: NextRequest): string {
-  const trimSlash = (u: string) => u.replace(/\/$/, "");
-
-  const explicit =
-    process.env.AI_NEWS_BRIEFING_URL?.trim() ||
-    process.env.NEXT_PUBLIC_AI_NEWS_BRIEFING_URL?.trim();
-  if (explicit) return trimSlash(explicit);
+  const serverOnly = process.env.AI_NEWS_BRIEFING_URL?.trim();
+  if (serverOnly && !isLoopbackOrigin(serverOnly)) {
+    return trimSlash(serverOnly);
+  }
 
   const render = process.env.RENDER_EXTERNAL_URL?.trim();
   if (render) return trimSlash(render);
@@ -30,20 +51,26 @@ export function getBriefingApiOrigin(request: NextRequest): string {
     return `${proto}://${forwardedHost}`;
   }
 
+  const publicBriefing = process.env.NEXT_PUBLIC_AI_NEWS_BRIEFING_URL?.trim();
+  if (publicBriefing && !isLoopbackOrigin(publicBriefing)) {
+    return trimSlash(publicBriefing);
+  }
+
   return request.nextUrl.origin;
 }
 
 /** Fallback when no Request (workers / scripts). */
 export function getBriefingApiBase(): string {
-  const raw =
-    process.env.AI_NEWS_BRIEFING_URL?.trim() ||
-    process.env.NEXT_PUBLIC_AI_NEWS_BRIEFING_URL?.trim() ||
-    "";
-  if (raw) return raw.replace(/\/$/, "");
+  const serverOnly = process.env.AI_NEWS_BRIEFING_URL?.trim();
+  if (serverOnly && !isLoopbackOrigin(serverOnly)) return trimSlash(serverOnly);
   if (process.env.RENDER_EXTERNAL_URL) return process.env.RENDER_EXTERNAL_URL.replace(/\/$/, "");
   if (process.env.VERCEL_URL)
     return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
   const pub = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (pub) return pub.replace(/\/$/, "");
+  const publicBriefing = process.env.NEXT_PUBLIC_AI_NEWS_BRIEFING_URL?.trim();
+  if (publicBriefing && !isLoopbackOrigin(publicBriefing)) {
+    return trimSlash(publicBriefing);
+  }
   return "http://127.0.0.1:3000";
 }
