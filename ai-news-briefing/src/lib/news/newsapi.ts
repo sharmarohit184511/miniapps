@@ -15,8 +15,33 @@ export type NewsArticleRef = {
 const everythingCache = new Map<string, { expires: number; articles: NewsArticleRef[] }>();
 const rssEverythingCache = new Map<string, { expires: number; articles: NewsArticleRef[] }>();
 
-/** After a 429, skip NewsAPI briefly so repeat refreshes don’t keep hitting a dead quota. */
-let newsApiRateLimitCooldownUntil = 0;
+/**
+ * After a 429, skip NewsAPI briefly for **that same key** only. If you swap to a new API key,
+ * we must not keep skipping NewsAPI — otherwise a “fresh” key never gets used.
+ */
+type NewsApiRateCooldown = { until: number; keyId: string };
+let newsApiRateLimitCooldown: NewsApiRateCooldown | null = null;
+
+function newsApiKeyId(apiKey: string): string {
+  if (!apiKey) return "";
+  return apiKey.length >= 12 ? apiKey.slice(-12) : apiKey;
+}
+
+function isCooldownActiveForKey(apiKey: string): boolean {
+  const cd = newsApiCooldownMs();
+  if (cd <= 0 || !newsApiRateLimitCooldown) return false;
+  if (Date.now() >= newsApiRateLimitCooldown.until) {
+    newsApiRateLimitCooldown = null;
+    return false;
+  }
+  return newsApiKeyId(apiKey) === newsApiRateLimitCooldown.keyId;
+}
+
+function armCooldownForKey(apiKey: string): void {
+  const cd = newsApiCooldownMs();
+  if (cd <= 0) return;
+  newsApiRateLimitCooldown = { until: Date.now() + cd, keyId: newsApiKeyId(apiKey) };
+}
 
 function newsApiCooldownMs(): number {
   const raw = process.env.NEWS_API_COOLDOWN_MS?.trim();
@@ -184,8 +209,13 @@ export async function fetchEverythingOrRss(
     if (hit && hit.expires > Date.now()) {
       return { articles: hit.articles, usedRssFallback: true };
     }
-    const raw = await fetchGoogleNewsRssSearch(sq, Math.min(100, Math.max(options.pageSize * 2, 20)));
-    const articles = dedupeArticles(raw, options.pageSize);
+    let raw = await fetchGoogleNewsRssSearch(sq, Math.min(100, Math.max(options.pageSize * 2, 20)));
+    let articles = dedupeArticles(raw, options.pageSize);
+    if (articles.length === 0) {
+      const broad = "India world business technology sports news politics";
+      raw = await fetchGoogleNewsRssSearch(broad, Math.min(100, Math.max(options.pageSize * 2, 24)));
+      articles = dedupeArticles(raw, options.pageSize);
+    }
     if (articles.length === 0) {
       if (e429) throw e429;
       throw new NewsApiError("NewsAPI is in cooldown and Google News RSS returned no articles.", 503);
@@ -197,7 +227,7 @@ export async function fetchEverythingOrRss(
   };
 
   const cd = newsApiCooldownMs();
-  if (cd > 0 && Date.now() < newsApiRateLimitCooldownUntil) {
+  if (cd > 0 && isCooldownActiveForKey(apiKey)) {
     return tryRss();
   }
 
@@ -206,9 +236,7 @@ export async function fetchEverythingOrRss(
     return { articles, usedRssFallback: false };
   } catch (e) {
     if (e instanceof NewsApiError && e.statusCode === 429) {
-      if (cd > 0) {
-        newsApiRateLimitCooldownUntil = Date.now() + cd;
-      }
+      armCooldownForKey(apiKey);
       return tryRss(e);
     }
     throw e;
@@ -227,7 +255,7 @@ export async function fetchTopHeadlinesPool(
   const categories = ["general", "business", "sports", "technology"] as const;
 
   const cd = newsApiCooldownMs();
-  if (cd > 0 && Date.now() < newsApiRateLimitCooldownUntil) {
+  if (cd > 0 && isCooldownActiveForKey(apiKey)) {
     const raw = await fetchGoogleNewsRssSearch(
       "world news business technology sports",
       Math.min(48, per * categories.length * 3)
@@ -257,9 +285,7 @@ export async function fetchTopHeadlinesPool(
       }
     } catch (e) {
       if (e instanceof NewsApiError && e.statusCode === 429) {
-        if (cd > 0) {
-          newsApiRateLimitCooldownUntil = Date.now() + cd;
-        }
+        armCooldownForKey(apiKey);
         const raw = await fetchGoogleNewsRssSearch(
           "world news business technology sports",
           Math.min(48, per * categories.length * 3)

@@ -2,13 +2,33 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 /**
- * News routes run in ai-news-briefing, which only loads this app's .env.local.
- * If NEWS_API_KEY is set in mini-apps-dashboard/.env.local (common with dev:all),
- * read it from there when missing here.
+ * Walk from cwd up to filesystem root; return first path `.../<subdir>/.env.local` that exists.
+ * e.g. cwd = ai-news-briefing → finds sibling mini-apps-dashboard/.env.local in parent folder.
+ */
+function findMonorepoEnvLocalPath(subdir: string): string | undefined {
+  let dir = process.cwd();
+  for (let i = 0; i < 14; i++) {
+    const p = join(dir, subdir, ".env.local");
+    if (existsSync(p)) return p;
+    const parent = join(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return undefined;
+}
+
+function stripBom(text: string): string {
+  return text.replace(/^\uFEFF/, "");
+}
+
+/**
+ * Parse NEWS_API_KEY from a .env file. If the file has multiple assignments, the **last**
+ * non-comment `NEWS_API_KEY=` wins (typical: comment old key, append new line below).
  */
 function parseNewsApiKeyFromEnvFile(filePath: string): string | undefined {
   if (!existsSync(filePath)) return undefined;
-  const text = readFileSync(filePath, "utf8");
+  const text = stripBom(readFileSync(filePath, "utf8"));
+  let last: string | undefined;
   for (const line of text.split("\n")) {
     const t = line.trim();
     if (!t || t.startsWith("#")) continue;
@@ -22,54 +42,46 @@ function parseNewsApiKeyFromEnvFile(filePath: string): string | undefined {
       v = v.slice(1, -1);
     }
     v = v.replace(/\s+#.*$/, "").trim();
-    return v || undefined;
+    if (v) last = v;
   }
-  return undefined;
-}
-
-/** Walk up from cwd so it still works if Next uses a parent folder as cwd. */
-function resolveDashboardEnvLocal(): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  let dir = process.cwd();
-  for (let i = 0; i < 10; i++) {
-    const p = join(dir, "mini-apps-dashboard", ".env.local");
-    if (!seen.has(p)) {
-      seen.add(p);
-      out.push(p);
-    }
-    const parent = join(dir, "..");
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return out;
+  return last;
 }
 
 let memo: string | undefined | null = null;
 
-/** In production, cache the resolved key once. In development, re-parse `.env.local` from disk each call so key edits apply without restarting `next dev`. */
+/** In production, cache the resolved key once. In development, resolve fresh each call. */
 function shouldMemoizeKey(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-function envFileCandidates(): string[] {
-  const cwd = process.cwd();
-  const paths = new Set<string>();
-  const add = (p: string) => {
-    if (p && !paths.has(p)) paths.add(p);
+/**
+ * Order matters for dev:all — most people only edit `mini-apps-dashboard/.env.local`, but the
+ * briefing app’s cwd may be `ai-news-briefing`, which would otherwise read its own `.env.local`
+ * first (often stale or missing).
+ */
+function envFileCandidatesOrdered(): string[] {
+  const paths: string[] = [];
+  const seen = new Set<string>();
+  const add = (p: string | undefined) => {
+    if (!p || seen.has(p)) return;
+    seen.add(p);
+    paths.push(p);
   };
-  add(join(cwd, ".env.local"));
-  // Repo layout: Mini Apps/ai-news-briefing + Mini Apps/mini-apps-dashboard
-  add(join(cwd, "..", "mini-apps-dashboard", ".env.local"));
-  add(join(cwd, "mini-apps-dashboard", ".env.local"));
-  for (const p of resolveDashboardEnvLocal()) add(p);
-  return [...paths];
+  add(findMonorepoEnvLocalPath("mini-apps-dashboard"));
+  add(findMonorepoEnvLocalPath("ai-news-briefing"));
+  add(join(process.cwd(), ".env.local"));
+  return paths;
 }
 
 function keyFromEnvFiles(): string | undefined {
-  for (const p of envFileCandidates()) {
+  for (const p of envFileCandidatesOrdered()) {
     const k = parseNewsApiKeyFromEnvFile(p);
-    if (k) return k;
+    if (k) {
+      if (process.env.NEWS_API_DEBUG === "1") {
+        console.warn("[NEWS_API_KEY] loaded from", p, "(suffix …" + k.slice(-4) + ")");
+      }
+      return k;
+    }
   }
   return undefined;
 }
@@ -78,13 +90,16 @@ export function getNewsApiKey(): string | undefined {
   const memoize = shouldMemoizeKey();
   if (memoize && memo !== null) return memo || undefined;
 
-  // Dev: read `.env.local` from disk first. Next.js freezes `process.env` from the initial
-  // load, so edits to `.env.local` only apply after a restart unless we re-parse the file.
   if (!memoize) {
     const fromFile = keyFromEnvFiles();
     if (fromFile) return fromFile;
     const direct = process.env.NEWS_API_KEY?.trim();
-    if (direct) return direct;
+    if (direct) {
+      if (process.env.NEWS_API_DEBUG === "1") {
+        console.warn("[NEWS_API_KEY] from process.env (suffix …" + direct.slice(-4) + ")");
+      }
+      return direct;
+    }
     return undefined;
   }
 
