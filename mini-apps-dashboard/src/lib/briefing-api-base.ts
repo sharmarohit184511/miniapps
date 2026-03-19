@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { headers } from "next/headers";
 
 function trimSlash(u: string): string {
   return u.replace(/\/$/, "");
@@ -57,6 +58,42 @@ export function getBriefingApiOrigin(request: NextRequest): string {
   }
 
   return request.nextUrl.origin;
+}
+
+/**
+ * Same origin resolution as {@link getBriefingApiOrigin} for Server Components / when
+ * only `headers()` is available (no `NextRequest`).
+ */
+export async function getBriefingApiOriginFromHeaders(): Promise<string> {
+  const h = await headers();
+
+  const serverOnly = process.env.AI_NEWS_BRIEFING_URL?.trim();
+  if (serverOnly && !isLoopbackOrigin(serverOnly)) {
+    return trimSlash(serverOnly);
+  }
+
+  const render = process.env.RENDER_EXTERNAL_URL?.trim();
+  if (render) return trimSlash(render);
+
+  const vercel = process.env.VERCEL_URL?.trim();
+  if (vercel) return trimSlash(`https://${vercel}`);
+
+  const publicApp = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (publicApp) return trimSlash(publicApp);
+
+  const forwardedHost = h.get("x-forwarded-host")?.split(",")[0]?.trim();
+  if (forwardedHost) {
+    const proto =
+      h.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+    return `${proto}://${forwardedHost}`;
+  }
+
+  const publicBriefing = process.env.NEXT_PUBLIC_AI_NEWS_BRIEFING_URL?.trim();
+  if (publicBriefing && !isLoopbackOrigin(publicBriefing)) {
+    return trimSlash(publicBriefing);
+  }
+
+  return getBriefingApiBase();
 }
 
 /** Fallback when no Request (workers / scripts). */

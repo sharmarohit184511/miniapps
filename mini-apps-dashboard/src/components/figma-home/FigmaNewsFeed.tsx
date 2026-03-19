@@ -11,6 +11,7 @@ import {
 } from "@/components/figma-home/figma-news-day-card";
 import { useFigmaBriefing } from "@/components/figma-home/FigmaBriefingContext";
 import { useFigmaDayBriefingPlayer } from "@/components/figma-home/use-figma-day-briefing-player";
+import { DEFAULT_FIGMA_FEED_DAYS } from "@/lib/figma-daily-feed-data";
 
 const SUBLINE_MAX = 72;
 
@@ -20,18 +21,19 @@ function clipSub(s: string, max = SUBLINE_MAX): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
-const FEED_DAYS = 10;
-
 export function FigmaNewsFeed({
   className,
   sectionTitle = "News feed",
+  /** When set (e.g. from RSC home), skip the initial client fetch — data is already in HTML. */
+  initialFeed,
 }: {
   className?: string;
   /** Figma: &quot;News &amp; Updates&quot; */
   sectionTitle?: string;
+  initialFeed?: { days: DayBlock[] };
 }) {
-  const [days, setDays] = useState<DayBlock[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState<DayBlock[]>(() => initialFeed?.days ?? []);
+  const [loading, setLoading] = useState(() => initialFeed === undefined);
   const [fillLoading, setFillLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const { setFeedMiniBar, setFeedAudio } = useFigmaBriefing();
@@ -81,7 +83,7 @@ export function FigmaNewsFeed({
     setErr(null);
     try {
       const r = await fetch(
-        `/api/figma-daily-feed?days=${FEED_DAYS}&lang=en&fill=${fill ? "1" : "0"}`,
+        `/api/figma-daily-feed?days=${DEFAULT_FIGMA_FEED_DAYS}&lang=en&fill=${fill ? "1" : "0"}`,
         { cache: "no-store" }
       );
       const j = await r.json();
@@ -103,9 +105,11 @@ export function FigmaNewsFeed({
     }
   }, []);
 
+  /** No server payload: fetch on mount. Home passes `initialFeed` to avoid duplicate work. */
   useEffect(() => {
+    if (initialFeed !== undefined) return;
     load(false);
-  }, [load]);
+  }, [load, initialFeed]);
 
   useEffect(() => {
     return () => {

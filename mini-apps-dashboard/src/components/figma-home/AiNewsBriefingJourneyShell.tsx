@@ -1,22 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CircleHelp } from "lucide-react";
+import type { DayBlock } from "@/components/figma-home/figma-news-day-card";
 import { DiwaliHomeScreen } from "./DiwaliHomeScreen";
 import { AiNewsBriefingOnboardingModal } from "./AiNewsBriefingOnboardingModal";
 
+const TOUR_DISMISSED_KEY = "ai-news-briefing-tour-dismissed";
+
 type Props = {
   briefingUrl: string;
+  /** Server-prefetched feed so the widget can render before client fetch. */
+  initialFeed?: { days: DayBlock[] };
 };
 
-export function AiNewsBriefingJourneyShell({ briefingUrl }: Props) {
-  const [onboardingOpen, setOnboardingOpen] = useState(true);
+export function AiNewsBriefingJourneyShell({
+  briefingUrl,
+  initialFeed,
+}: Props) {
+  /** null = hydration: avoid wrong initial open state vs localStorage */
+  const [onboardingOpen, setOnboardingOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      try {
+        const dismissed = localStorage.getItem(TOUR_DISMISSED_KEY) === "1";
+        setOnboardingOpen(!dismissed);
+      } catch {
+        setOnboardingOpen(true);
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  const handleTourClose = () => {
+    try {
+      localStorage.setItem(TOUR_DISMISSED_KEY, "1");
+    } catch {
+      /* ignore quota / private mode */
+    }
+    setOnboardingOpen(false);
+  };
 
   return (
     <>
       <AiNewsBriefingOnboardingModal
-        open={onboardingOpen}
-        onClose={() => setOnboardingOpen(false)}
+        open={onboardingOpen === true}
+        onClose={handleTourClose}
       />
 
       <header className="fixed left-0 right-0 top-0 z-[70] flex h-12 items-center justify-between gap-2 border-b border-[#d0e4f0] bg-white/95 px-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:h-14 sm:px-5">
@@ -48,7 +78,10 @@ export function AiNewsBriefingJourneyShell({ briefingUrl }: Props) {
       </header>
 
       <div className="flex justify-center px-2 pb-10 pt-14 sm:px-4 sm:pt-16">
-        <DiwaliHomeScreen briefingUrl={briefingUrl} />
+        <DiwaliHomeScreen
+          briefingUrl={briefingUrl}
+          initialFeed={initialFeed}
+        />
       </div>
     </>
   );

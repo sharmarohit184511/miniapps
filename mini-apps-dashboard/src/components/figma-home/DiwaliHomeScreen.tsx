@@ -20,14 +20,16 @@ import { FigmaBirthdayCarousel } from "./FigmaBirthdayCarousel";
 import { FigmaBriefingProvider, useFigmaBriefing } from "./FigmaBriefingContext";
 import { FigmaHomeStickyFooter } from "./FigmaHomeStickyFooter";
 import { FigmaNewsFeed } from "./FigmaNewsFeed";
+import type { DayBlock } from "@/components/figma-home/figma-news-day-card";
 import { cn } from "@/lib/utils";
 
 type Props = {
   briefingUrl: string;
+  initialFeed?: { days: DayBlock[] };
 };
 
 /** Manager home — aligned to Figma node 1:30080 (Figma MCP) */
-function DiwaliHomeScreenInner({ briefingUrl }: Props) {
+function DiwaliHomeScreenInner({ briefingUrl, initialFeed }: Props) {
   const { playing, feedAudio } = useFigmaBriefing();
   const anyAudioPlaying = playing || Boolean(feedAudio?.playing);
 
@@ -294,7 +296,11 @@ function DiwaliHomeScreenInner({ briefingUrl }: Props) {
 
         {/* AI News summary — live feed */}
         <section className="px-6 pb-5">
-          <FigmaNewsFeed className="mt-0" sectionTitle="AI News summary" />
+          <FigmaNewsFeed
+            className="mt-0"
+            sectionTitle="AI News summary"
+            initialFeed={initialFeed}
+          />
         </section>
 
         {/* Quick Links 1:30363 */}
@@ -391,10 +397,13 @@ function DiwaliHomeScreenInner({ briefingUrl }: Props) {
   );
 }
 
-export function DiwaliHomeScreen({ briefingUrl }: Props) {
+export function DiwaliHomeScreen({ briefingUrl, initialFeed }: Props) {
   return (
     <FigmaBriefingProvider briefingUrl={briefingUrl}>
-      <DiwaliHomeScreenInner briefingUrl={briefingUrl} />
+      <DiwaliHomeScreenInner
+        briefingUrl={briefingUrl}
+        initialFeed={initialFeed}
+      />
     </FigmaBriefingProvider>
   );
 }
