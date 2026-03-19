@@ -1,5 +1,5 @@
 import {
-  fetchEverything,
+  fetchEverythingOrRss,
   fetchTopHeadlinesCategory,
   type NewsArticleRef,
 } from "@/lib/news/newsapi";
@@ -93,18 +93,27 @@ async function fetchFigmaDayArticlesConsolidated(
 ): Promise<FigmaDaySectionArticles[]> {
   const broad =
     "(India OR Indian OR business OR technology OR sports OR cricket OR IPL OR world OR politics OR AI OR Reliance OR Jio OR economy)";
-  let pool = await fetchEverything(apiKey, broad, {
+  let skipHeadlineFallback = false;
+  const first = await fetchEverythingOrRss(apiKey, broad, {
     pageSize: 100,
     language: "en",
     from: dateYmd,
     to: dateYmd,
   });
+  let pool = first.articles;
+  skipHeadlineFallback = skipHeadlineFallback || first.usedRssFallback;
 
   if (pool.length === 0) {
-    pool = await fetchEverything(apiKey, broad, {
-      pageSize: 60,
-      language: "en",
-    }).catch(() => [] as NewsArticleRef[]);
+    try {
+      const second = await fetchEverythingOrRss(apiKey, broad, {
+        pageSize: 60,
+        language: "en",
+      });
+      pool = second.articles;
+      skipHeadlineFallback = skipHeadlineFallback || second.usedRssFallback;
+    } catch {
+      pool = [];
+    }
   }
 
   const byKey = new Map<string, NewsArticleRef[]>();
@@ -158,7 +167,7 @@ async function fetchFigmaDayArticlesConsolidated(
   const out: FigmaDaySectionArticles[] = [];
   for (const def of FIGMA_NEWS_SECTIONS) {
     let articles = (byKey.get(def.key) ?? []).slice(0, def.pageSize);
-    if (articles.length === 0 && def.fallback) {
+    if (articles.length === 0 && def.fallback && !skipHeadlineFallback) {
       try {
         articles = await fetchTopHeadlinesCategory(
           apiKey,
@@ -186,13 +195,21 @@ async function fetchFigmaDayArticlesPerSection(
 ): Promise<FigmaDaySectionArticles[]> {
   const out: FigmaDaySectionArticles[] = [];
   for (const def of FIGMA_NEWS_SECTIONS) {
-    let articles = await fetchEverything(apiKey, def.q, {
-      pageSize: def.pageSize,
-      language: def.language,
-      from: dateYmd,
-      to: dateYmd,
-    });
-    if (articles.length === 0 && def.fallback) {
+    let articles: NewsArticleRef[] = [];
+    let usedRss = false;
+    try {
+      const r = await fetchEverythingOrRss(apiKey, def.q, {
+        pageSize: def.pageSize,
+        language: def.language,
+        from: dateYmd,
+        to: dateYmd,
+      });
+      articles = r.articles;
+      usedRss = r.usedRssFallback;
+    } catch {
+      articles = [];
+    }
+    if (articles.length === 0 && def.fallback && !usedRss) {
       try {
         articles = await fetchTopHeadlinesCategory(
           apiKey,

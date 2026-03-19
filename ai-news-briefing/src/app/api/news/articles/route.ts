@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNewsApiKey } from "@/lib/news/news-key";
-import { fetchEverything, NewsApiError } from "@/lib/news/newsapi";
+import { fetchEverythingOrRss, NewsApiError } from "@/lib/news/newsapi";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const language = request.nextUrl.searchParams.get("language")?.trim() || undefined;
 
   try {
-    const articles = await fetchEverything(apiKey, q, { pageSize: limit, language });
+    const { articles } = await fetchEverythingOrRss(apiKey, q, { pageSize: limit, language });
     return NextResponse.json({ articles });
   } catch (e) {
     if (e instanceof NewsApiError) {

@@ -47,6 +47,11 @@ function resolveDashboardEnvLocal(): string[] {
 
 let memo: string | undefined | null = null;
 
+/** In production, cache the resolved key once. In development, re-parse `.env.local` from disk each call so key edits apply without restarting `next dev`. */
+function shouldMemoizeKey(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 function envFileCandidates(): string[] {
   const cwd = process.cwd();
   const paths = new Set<string>();
@@ -61,19 +66,37 @@ function envFileCandidates(): string[] {
   return [...paths];
 }
 
+function keyFromEnvFiles(): string | undefined {
+  for (const p of envFileCandidates()) {
+    const k = parseNewsApiKeyFromEnvFile(p);
+    if (k) return k;
+  }
+  return undefined;
+}
+
 export function getNewsApiKey(): string | undefined {
-  if (memo !== null) return memo || undefined;
+  const memoize = shouldMemoizeKey();
+  if (memoize && memo !== null) return memo || undefined;
+
+  // Dev: read `.env.local` from disk first. Next.js freezes `process.env` from the initial
+  // load, so edits to `.env.local` only apply after a restart unless we re-parse the file.
+  if (!memoize) {
+    const fromFile = keyFromEnvFiles();
+    if (fromFile) return fromFile;
+    const direct = process.env.NEWS_API_KEY?.trim();
+    if (direct) return direct;
+    return undefined;
+  }
+
   const direct = process.env.NEWS_API_KEY?.trim();
   if (direct) {
     memo = direct;
     return direct;
   }
-  for (const p of envFileCandidates()) {
-    const k = parseNewsApiKeyFromEnvFile(p);
-    if (k) {
-      memo = k;
-      return k;
-    }
+  const fromFile = keyFromEnvFiles();
+  if (fromFile) {
+    memo = fromFile;
+    return fromFile;
   }
   memo = undefined;
   return undefined;

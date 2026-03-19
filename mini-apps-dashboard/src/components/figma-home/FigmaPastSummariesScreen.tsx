@@ -31,6 +31,7 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
     activeAudioDate,
     playing,
     startConversationBriefing,
+    audioDurationByDate,
   } = useFigmaDayBriefingPlayer();
 
   const load = useCallback(async () => {
@@ -73,7 +74,7 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
           className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#013e7c] hover:underline"
         >
           <ChevronLeft className="size-4" />
-          Figma journey
+          Back to homepage
         </Link>
         <h1 className="text-lg font-bold tracking-tight text-[#141414]">
           Past summaries
@@ -108,6 +109,7 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
                 playing={playing}
                 summaryExpanded={summaryOpen[day.date] ?? false}
                 briefingErr={briefingErr}
+                audioDurationByDate={audioDurationByDate}
                 onPlay={startConversationBriefing}
                 onToggleSummary={(d) =>
                   setSummaryOpen((prev) => ({ ...prev, [d]: !prev[d] }))

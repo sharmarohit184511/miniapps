@@ -290,31 +290,10 @@ function DiwaliHomeScreenInner({ briefingUrl }: Props) {
           </div>
         </section>
 
-        {/* Employee Directory 1:30315 */}
+        {/* AI News summary — live feed */}
         <section className="px-6 pb-5">
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-[24px] bg-white p-4 text-left shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
-          >
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e5f1f7]">
-              <Users className="size-6 text-[#0078ad]" strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-black leading-5 tracking-[-0.48px] text-[#141414]">
-                Employee Directory
-              </p>
-              <p className="mt-1 text-xs font-medium leading-4 tracking-[-0.06px] text-black">
-                Search for people across organisation
-              </p>
-            </div>
-            <ChevronRight className="size-6 shrink-0 text-[#141414]/50" />
-          </button>
+          <FigmaNewsFeed className="mt-0" sectionTitle="AI News summary" />
         </section>
-
-        {/* News & Updates — live feed */}
-        <div className="px-6 pb-2">
-          <FigmaNewsFeed className="mt-0" sectionTitle="News & Updates" />
-        </div>
 
         {/* Quick Links 1:30363 */}
         <section className="px-6 pb-5">

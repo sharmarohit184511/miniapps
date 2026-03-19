@@ -69,7 +69,7 @@ const SLIDES: Slide[] = [
     kicker: "You’re set",
     title: "Start in seconds",
     lead:
-      "Scroll to News & Updates, hit play on any day, or open the full briefing app for history, topics, and deeper control.",
+      "Scroll to AI News summary, hit play on any day, or open the full briefing app for history, topics, and deeper control.",
     highlights: [
       { Icon: Layers, text: "Written summaries expand on tap" },
       { Icon: Sparkles, text: "AI summaries when you want depth" },

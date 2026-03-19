@@ -97,7 +97,7 @@ function HistoryContent() {
       {!loading && items.length === 0 && !err && (
         <p className="text-sm text-black/55">
           No saved summaries yet. Open the Figma home, use{" "}
-          <strong>AI summaries</strong> on the news feed, then return here.
+          <strong>Refresh</strong> on the news feed, then return here.
         </p>
       )}
 

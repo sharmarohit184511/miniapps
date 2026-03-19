@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   FigmaNewsDayCard,
@@ -33,6 +33,7 @@ export function FigmaNewsFeed({
     activeAudioDate,
     playing,
     startConversationBriefing,
+    audioDurationByDate,
   } = useFigmaDayBriefingPlayer();
 
   const load = useCallback(async (fill: boolean) => {
@@ -78,65 +79,73 @@ export function FigmaNewsFeed({
     <section className={cn("mt-8", className)} aria-label="News feed">
       <audio ref={audioRef} className="hidden" preload="auto" />
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-black tracking-[-0.48px] text-[#141414]">
-          {sectionTitle}
-        </h2>
-        <button
-          type="button"
-          disabled={fillLoading || loading}
-          onClick={() => load(true)}
-          className="inline-flex items-center gap-1 rounded-lg bg-[#0078ad] px-2.5 py-1 text-[11px] font-bold text-white disabled:opacity-50"
-        >
-          {fillLoading ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="size-3.5" />
-          )}
-          AI summaries
-        </button>
-      </div>
-
-      {err && (
-        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          {err}
-        </p>
-      )}
-
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-black/50">
-          <Loader2 className="size-5 animate-spin text-[#0078ad]" />
-          Loading headlines…
+      <div
+        className={cn(
+          "overflow-hidden rounded-[24px] bg-white p-4 shadow-[0_4px_16px_rgba(0,0,0,0.08)]",
+          "ring-1 ring-black/[0.04]"
+        )}
+      >
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#e8eef2] pb-4">
+          <h2 className="text-base font-black tracking-[-0.48px] text-[#141414]">
+            {sectionTitle}
+          </h2>
+          <button
+            type="button"
+            disabled={fillLoading || loading}
+            onClick={() => load(true)}
+            className="inline-flex items-center gap-1 rounded-lg bg-[#0078ad] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#006a99] disabled:opacity-50"
+          >
+            {fillLoading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
+            Refresh
+          </button>
         </div>
-      )}
 
-      {!loading && today && (
-        <FigmaNewsDayCard
-          day={today}
-          isToday
-          generatingFor={generatingFor}
-          activeAudioDate={activeAudioDate}
-          playing={playing}
-          summaryExpanded={summaryOpen[today.date] ?? false}
-          briefingErr={briefingErr}
-          onPlay={startConversationBriefing}
-          onToggleSummary={toggleSummary}
-        />
-      )}
+        {err && (
+          <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            {err}
+          </p>
+        )}
 
-      {!loading && pastDays.length > 0 && (
-        <Link
-          href="/dashboard/ai-news-briefing/past-summaries"
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0078ad]/35 bg-[#f5fafd] px-4 py-2.5 text-sm font-semibold text-[#013e7c] transition-colors hover:bg-[#eef6fb]"
-        >
-          See past summaries
-          <ChevronRight className="size-4" />
-        </Link>
-      )}
+        {loading && (
+          <div className="flex items-center gap-2 py-2 text-sm text-black/50">
+            <Loader2 className="size-5 animate-spin text-[#0078ad]" />
+            Loading headlines…
+          </div>
+        )}
 
-      {!loading && !today && !err && (
-        <p className="text-sm text-black/50">No feed data yet.</p>
-      )}
+        {!loading && today && (
+          <FigmaNewsDayCard
+            day={today}
+            isToday
+            generatingFor={generatingFor}
+            activeAudioDate={activeAudioDate}
+            playing={playing}
+            summaryExpanded={summaryOpen[today.date] ?? false}
+            briefingErr={briefingErr}
+            audioDurationByDate={audioDurationByDate}
+            onPlay={startConversationBriefing}
+            onToggleSummary={toggleSummary}
+          />
+        )}
+
+        {!loading && pastDays.length > 0 && (
+          <Link
+            href="/dashboard/ai-news-briefing/past-summaries"
+            className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0078ad]/35 bg-[#f5fafd] px-4 py-2.5 text-sm font-semibold text-[#013e7c] transition-colors hover:bg-[#eef6fb]"
+          >
+            See past summaries
+            <ChevronRight className="size-4" />
+          </Link>
+        )}
+
+        {!loading && !today && !err && (
+          <p className="py-2 text-sm text-black/50">No feed data yet.</p>
+        )}
+      </div>
     </section>
   );
 }

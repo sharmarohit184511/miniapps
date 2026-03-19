@@ -28,6 +28,11 @@ export function useFigmaDayBriefingPlayer() {
   const briefingInFlightRef = useRef<string | null>(null);
   /** Last successful audio URL per feed date — replay with one tap (user gesture). */
   const audioUrlByDateRef = useRef<Record<string, string>>({});
+  /** Feed date for the current `audio` src (for correlating loadedmetadata). */
+  const currentAudioDateRef = useRef<string | null>(null);
+  const [audioDurationByDate, setAudioDurationByDate] = useState<
+    Record<string, number>
+  >({});
 
   useEffect(() => {
     const el = audioRef.current;
@@ -38,13 +43,31 @@ export function useFigmaDayBriefingPlayer() {
       setPlaying(false);
       setActiveAudioDate(null);
     };
+    const onLoadedMetadata = () => {
+      const date = currentAudioDateRef.current;
+      const d = el.duration;
+      if (
+        date &&
+        typeof d === "number" &&
+        Number.isFinite(d) &&
+        d > 0 &&
+        !Number.isNaN(d)
+      ) {
+        setAudioDurationByDate((prev) => ({
+          ...prev,
+          [date]: Math.round(d),
+        }));
+      }
+    };
     el.addEventListener("play", onPlay);
     el.addEventListener("pause", onPause);
     el.addEventListener("ended", onEnded);
+    el.addEventListener("loadedmetadata", onLoadedMetadata);
     return () => {
       el.removeEventListener("play", onPlay);
       el.removeEventListener("pause", onPause);
       el.removeEventListener("ended", onEnded);
+      el.removeEventListener("loadedmetadata", onLoadedMetadata);
     };
   }, []);
 
@@ -100,6 +123,7 @@ export function useFigmaDayBriefingPlayer() {
           audioUrlByDateRef.current[date] = url;
           try {
             el.pause();
+            currentAudioDateRef.current = date;
             el.src = url;
             setActiveAudioDate(date);
             await el.play();
@@ -150,6 +174,7 @@ export function useFigmaDayBriefingPlayer() {
       if (cachedUrl && el) {
         try {
           el.pause();
+          currentAudioDateRef.current = date;
           el.src = cachedUrl;
           setActiveAudioDate(date);
           await el.play();
@@ -229,5 +254,6 @@ export function useFigmaDayBriefingPlayer() {
     activeAudioDate,
     playing,
     startConversationBriefing,
+    audioDurationByDate,
   };
 }

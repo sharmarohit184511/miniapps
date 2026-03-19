@@ -1,3 +1,8 @@
+import {
+  fetchGoogleNewsRssSearch,
+  simplifyQueryForGoogleNewsRss,
+} from "@/lib/news/google-news-rss";
+
 const NEWS_API_BASE = "https://newsapi.org/v2";
 
 export type NewsArticleRef = {
@@ -5,6 +10,49 @@ export type NewsArticleRef = {
   title: string;
   source: string;
 };
+
+/** In-memory cache for identical /everything requests (reduces repeat refreshes). Set NEWS_API_CACHE_MS=0 to disable. */
+const everythingCache = new Map<string, { expires: number; articles: NewsArticleRef[] }>();
+const rssEverythingCache = new Map<string, { expires: number; articles: NewsArticleRef[] }>();
+
+/** After a 429, skip NewsAPI briefly so repeat refreshes don’t keep hitting a dead quota. */
+let newsApiRateLimitCooldownUntil = 0;
+
+function newsApiCooldownMs(): number {
+  const raw = process.env.NEWS_API_COOLDOWN_MS?.trim();
+  if (raw === "0" || raw === "false") return 0;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 0) return n;
+  return 20 * 60 * 1000;
+}
+
+function everythingCacheTtlMs(): number {
+  const raw = process.env.NEWS_API_CACHE_MS?.trim();
+  if (raw === "0" || raw === "false") return 0;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 0) return n;
+  return 10 * 60 * 1000;
+}
+
+function rssFallbackCacheTtlMs(): number {
+  return 5 * 60 * 1000;
+}
+
+function everythingCacheKey(
+  apiKey: string,
+  q: string,
+  options: { pageSize: number; language?: string; from?: string; to?: string }
+): string {
+  const keyHint = apiKey.length >= 6 ? apiKey.slice(-6) : apiKey;
+  return [
+    keyHint,
+    q,
+    options.pageSize,
+    options.language ?? "",
+    options.from ?? "",
+    options.to ?? "",
+  ].join("|");
+}
 
 type NewsApiArticle = {
   title?: string | null;
@@ -49,7 +97,7 @@ async function parseNewsApiResponse(res: Response): Promise<NewsApiJson> {
     const lower = msg.toLowerCase();
     if (lower.includes("rate limit") || res.status === 429) {
       throw new NewsApiError(
-        "NewsAPI rate limit exceeded (free tier is ~100 requests/day). Wait until tomorrow, upgrade at newsapi.org/pricing, or avoid refreshing the feed repeatedly — cached digests no longer call NewsAPI.",
+        `NewsAPI rate limit exceeded (free tier is ~100 requests/day). Wait until tomorrow, upgrade at newsapi.org/pricing, or avoid refreshing the feed repeatedly — cached digests no longer call NewsAPI. [NewsAPI: ${msg}]`,
         429
       );
     }
@@ -86,6 +134,13 @@ export async function fetchEverything(
   const q = query.trim();
   if (!q) return [];
 
+  const ttl = everythingCacheTtlMs();
+  const ck = everythingCacheKey(apiKey, q, options);
+  if (ttl > 0) {
+    const hit = everythingCache.get(ck);
+    if (hit && hit.expires > Date.now()) return hit.articles;
+  }
+
   const url = new URL(`${NEWS_API_BASE}/everything`);
   url.searchParams.set("apiKey", apiKey);
   url.searchParams.set("q", q);
@@ -101,8 +156,63 @@ export async function fetchEverything(
   const data = await parseNewsApiResponse(res);
   const raw = data.articles ?? [];
   const mapped = raw.map(mapArticle).filter(Boolean) as NewsArticleRef[];
+  const out = dedupeArticles(mapped, options.pageSize);
+  if (ttl > 0 && out.length > 0) {
+    everythingCache.set(ck, { expires: Date.now() + ttl, articles: out });
+  }
+  return out;
+}
 
-  return dedupeArticles(mapped, options.pageSize);
+/**
+ * Like {@link fetchEverything}, but on NewsAPI 429 uses Google News RSS (no key) so POC keeps working.
+ */
+export async function fetchEverythingOrRss(
+  apiKey: string,
+  query: string,
+  options: {
+    pageSize: number;
+    language?: string;
+    from?: string;
+    to?: string;
+  }
+): Promise<{ articles: NewsArticleRef[]; usedRssFallback: boolean }> {
+  const tryRss = async (e429?: NewsApiError): Promise<{ articles: NewsArticleRef[]; usedRssFallback: true }> => {
+    const sq = simplifyQueryForGoogleNewsRss(query);
+    const rck = `rss|${sq}|${options.pageSize}|${options.from ?? ""}|${options.to ?? ""}`;
+    const rssTtl = rssFallbackCacheTtlMs();
+    const hit = rssEverythingCache.get(rck);
+    if (hit && hit.expires > Date.now()) {
+      return { articles: hit.articles, usedRssFallback: true };
+    }
+    const raw = await fetchGoogleNewsRssSearch(sq, Math.min(100, Math.max(options.pageSize * 2, 20)));
+    const articles = dedupeArticles(raw, options.pageSize);
+    if (articles.length === 0) {
+      if (e429) throw e429;
+      throw new NewsApiError("NewsAPI is in cooldown and Google News RSS returned no articles.", 503);
+    }
+    if (rssTtl > 0) {
+      rssEverythingCache.set(rck, { expires: Date.now() + rssTtl, articles });
+    }
+    return { articles, usedRssFallback: true };
+  };
+
+  const cd = newsApiCooldownMs();
+  if (cd > 0 && Date.now() < newsApiRateLimitCooldownUntil) {
+    return tryRss();
+  }
+
+  try {
+    const articles = await fetchEverything(apiKey, query, options);
+    return { articles, usedRssFallback: false };
+  } catch (e) {
+    if (e instanceof NewsApiError && e.statusCode === 429) {
+      if (cd > 0) {
+        newsApiRateLimitCooldownUntil = Date.now() + cd;
+      }
+      return tryRss(e);
+    }
+    throw e;
+  }
 }
 
 /**
@@ -115,6 +225,16 @@ export async function fetchTopHeadlinesPool(
   const country = options.country ?? "us";
   const per = Math.min(options.perCategory ?? 5, 10);
   const categories = ["general", "business", "sports", "technology"] as const;
+
+  const cd = newsApiCooldownMs();
+  if (cd > 0 && Date.now() < newsApiRateLimitCooldownUntil) {
+    const raw = await fetchGoogleNewsRssSearch(
+      "world news business technology sports",
+      Math.min(48, per * categories.length * 3)
+    );
+    const pooled = dedupeArticles(raw, Math.min(40, per * categories.length));
+    if (pooled.length > 0) return pooled;
+  }
 
   const seen = new Set<string>();
   const out: NewsArticleRef[] = [];
@@ -136,7 +256,18 @@ export async function fetchTopHeadlinesPool(
         out.push(m);
       }
     } catch (e) {
-      if (e instanceof NewsApiError && e.statusCode === 429) throw e;
+      if (e instanceof NewsApiError && e.statusCode === 429) {
+        if (cd > 0) {
+          newsApiRateLimitCooldownUntil = Date.now() + cd;
+        }
+        const raw = await fetchGoogleNewsRssSearch(
+          "world news business technology sports",
+          Math.min(48, per * categories.length * 3)
+        );
+        const pooled = dedupeArticles(raw, Math.min(40, per * categories.length));
+        if (pooled.length === 0) throw e;
+        return pooled;
+      }
       // Skip category if e.g. no articles for region
     }
   }
