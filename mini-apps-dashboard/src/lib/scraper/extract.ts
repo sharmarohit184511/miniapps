@@ -641,6 +641,111 @@ function stubArticleForFailedUrl(rawUrl: string): ExtractedArticle {
   };
 }
 
+/** Run async work on `items` with at most `limit` in flight. */
+async function parallelForEach<T>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
+  const n = items.length;
+  if (n === 0) return;
+  let next = 0;
+  const workerCount = Math.min(Math.max(1, limit), n);
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const j = next++;
+        if (j >= n) break;
+        await fn(items[j]);
+      }
+    })
+  );
+}
+
+async function extractSingleUrl(
+  src: Source,
+  i: number,
+  total: number,
+  perUrlMs: number,
+  useUrlSubprocess: boolean,
+  options?: {
+    onSourceStart?: (info: {
+      index: number;
+      total: number;
+      source: Source;
+    }) => void | Promise<void>;
+    onSourceTick?: (info: ExtractSourceTickInfo) => void | Promise<void>;
+  }
+): Promise<ExtractedArticle> {
+  const cb = options?.onSourceStart?.({ index: i, total, source: src });
+  if (cb != null && typeof (cb as Promise<void>).then === "function") {
+    void (cb as Promise<void>).catch(() => {});
+  }
+  let host = "";
+  try {
+    const u = new URL(
+      /^https?:\/\//i.test(src.value.trim())
+        ? src.value.trim()
+        : `https://${src.value.trim()}`
+    );
+    host = u.hostname;
+  } catch {
+    /* ignore */
+  }
+  const t0 = Date.now();
+  console.log(
+    "[extract] url start",
+    host || src.value.slice(0, 64),
+    useUrlSubprocess ? "subprocess" : "inline"
+  );
+  const started = Date.now();
+  const tickMs = 6000;
+  const tick = setInterval(() => {
+    const elapsedSec = Math.floor((Date.now() - started) / 1000);
+    const t = options?.onSourceTick?.({ index: i, total, source: src, elapsedSec });
+    if (t != null && typeof (t as Promise<void>).then === "function") {
+      void (t as Promise<void>).catch(() => {});
+    }
+  }, tickMs);
+  try {
+    const article = await Promise.race([
+      useUrlSubprocess
+        ? runExtractUrlSubprocess(src.value, perUrlMs)
+        : extractFromUrl(src.value),
+      new Promise<null>((resolve) =>
+        setTimeout(() => {
+          console.warn("[extract] per-URL cap", perUrlMs, "ms", src.value.slice(0, 80));
+          resolve(null);
+        }, perUrlMs)
+      ),
+    ]);
+    let finalArticle = article;
+    if (!finalArticle) {
+      finalArticle = await extractUrlLiteMeta(src.value);
+    }
+    if (!finalArticle) {
+      finalArticle = stubArticleForFailedUrl(src.value);
+      console.warn("[extract] url stub (no extract)", host || src.value.slice(0, 50));
+    } else if (!article) {
+      console.log("[extract] url lite-meta fallback", host || "?");
+    }
+    console.log(
+      "[extract] url done",
+      host || "?",
+      Date.now() - t0,
+      "ms",
+      article ? "ok" : finalArticle ? "fallback" : "stub"
+    );
+    const withSection =
+      src.briefing_section?.trim() && finalArticle
+        ? { ...finalArticle, briefing_section: src.briefing_section.trim() }
+        : finalArticle;
+    return withSection!;
+  } finally {
+    clearInterval(tick);
+  }
+}
+
 export async function extractSources(
   sources: Source[],
   options?: {
@@ -653,88 +758,65 @@ export async function extractSources(
     onSourceTick?: (info: ExtractSourceTickInfo) => void | Promise<void>;
   }
 ): Promise<ExtractedArticle[]> {
-  const results: ExtractedArticle[] = [];
   const total = sources.length;
+  const rawPerUrlMs = Math.min(
+    Math.max(Number(process.env.EXTRACT_PER_URL_TIMEOUT_MS ?? "85000") || 85000, 35000),
+    180000
+  );
+  let perUrlMs = rawPerUrlMs;
+  if (total >= 7) perUrlMs = Math.min(perUrlMs, 32_000);
+  else if (total >= 5) perUrlMs = Math.min(perUrlMs, 40_000);
+  else if (total >= 4) perUrlMs = Math.min(perUrlMs, 42_000);
+
+  const useUrlSubprocess =
+    process.env.EXTRACT_URL_SUBPROCESS === "true" &&
+    resolveWorkerScript("extract-url-worker.cjs") != null;
+
+  const parallelLimit = Math.min(
+    8,
+    Math.max(1, Number(process.env.EXTRACT_PARALLEL_CONCURRENCY ?? "4") || 4)
+  );
+
+  const output: ExtractedArticle[] = new Array(sources.length);
+  const urlIndices: number[] = [];
+
   for (let i = 0; i < sources.length; i++) {
     const src = sources[i];
-    // Don’t await: slow/hung Supabase progress writes must not block extraction (fixes stuck 5%).
-    const cb = options?.onSourceStart?.({ index: i, total, source: src });
-    if (cb != null && typeof (cb as Promise<void>).then === "function") {
-      void (cb as Promise<void>).catch(() => {});
-    }
-    if (src.type === "url") {
-      const rawPerUrlMs = Math.min(
-        Math.max(Number(process.env.EXTRACT_PER_URL_TIMEOUT_MS ?? "85000") || 85000, 35000),
-        180000
-      );
-      /** Digest runs: cap wall time per URL so N sources cannot sum to N×85s worst case. */
-      const perUrlMs =
-        total > 5 ? Math.min(rawPerUrlMs, 45_000) : rawPerUrlMs;
-      const useUrlSubprocess =
-        process.env.EXTRACT_URL_SUBPROCESS === "true" &&
-        resolveWorkerScript("extract-url-worker.cjs") != null;
-      let host = "";
-      try {
-        const u = new URL(/^https?:\/\//i.test(src.value.trim()) ? src.value.trim() : `https://${src.value.trim()}`);
-        host = u.hostname;
-      } catch {
-        /* ignore */
-      }
-      const t0 = Date.now();
-      console.log(
-        "[extract] url start",
-        host || src.value.slice(0, 64),
-        useUrlSubprocess ? "subprocess" : "inline"
-      );
-      const started = Date.now();
-      const tickMs = 6000;
-      const tick = setInterval(() => {
-        const elapsedSec = Math.floor((Date.now() - started) / 1000);
-        const t = options?.onSourceTick?.({ index: i, total, source: src, elapsedSec });
-        if (t != null && typeof (t as Promise<void>).then === "function") {
-          void (t as Promise<void>).catch(() => {});
-        }
-      }, tickMs);
-      try {
-        const article = await Promise.race([
-          useUrlSubprocess
-            ? runExtractUrlSubprocess(src.value, perUrlMs)
-            : extractFromUrl(src.value),
-          new Promise<null>((resolve) =>
-            setTimeout(() => {
-              console.warn("[extract] per-URL cap", perUrlMs, "ms", src.value.slice(0, 80));
-              resolve(null);
-            }, perUrlMs)
-          ),
-        ]);
-        let finalArticle = article;
-        if (!finalArticle) {
-          finalArticle = await extractUrlLiteMeta(src.value);
-        }
-        if (!finalArticle) {
-          finalArticle = stubArticleForFailedUrl(src.value);
-          console.warn("[extract] url stub (no extract)", host || src.value.slice(0, 50));
-        } else if (!article) {
-          console.log("[extract] url lite-meta fallback", host || "?");
-        }
-        console.log(
-          "[extract] url done",
-          host || "?",
-          Date.now() - t0,
-          "ms",
-          article ? "ok" : finalArticle ? "fallback" : "stub"
-        );
-        const withSection =
-          src.briefing_section?.trim() && finalArticle
-            ? { ...finalArticle, briefing_section: src.briefing_section.trim() }
-            : finalArticle;
-        results.push(withSection!);
-      } finally {
-        clearInterval(tick);
-      }
+    if (src.type === "text") {
+      output[i] = extractFromText(src.value, src.title);
     } else {
-      results.push(extractFromText(src.value, src.title));
+      urlIndices.push(i);
     }
   }
-  return results;
+
+  if (urlIndices.length === 0) {
+    return output;
+  }
+
+  if (parallelLimit <= 1 || urlIndices.length === 1) {
+    for (const i of urlIndices) {
+      output[i] = await extractSingleUrl(
+        sources[i],
+        i,
+        total,
+        perUrlMs,
+        useUrlSubprocess,
+        options
+      );
+    }
+    return output;
+  }
+
+  await parallelForEach(urlIndices, parallelLimit, async (i) => {
+    output[i] = await extractSingleUrl(
+      sources[i],
+      i,
+      total,
+      perUrlMs,
+      useUrlSubprocess,
+      options
+    );
+  });
+
+  return output;
 }

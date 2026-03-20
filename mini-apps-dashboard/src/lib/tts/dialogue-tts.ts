@@ -105,6 +105,28 @@ async function synthesizeTurn(
   return null;
 }
 
+/** Run `fn` on each item with at most `limit` concurrent; results ordered by index. */
+async function parallelMapByIndex<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const n = items.length;
+  const results = new Array<R>(n);
+  let next = 0;
+  const workerCount = Math.min(Math.max(1, limit), Math.max(1, n));
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const j = next++;
+        if (j >= n) break;
+        results[j] = await fn(items[j], j);
+      }
+    })
+  );
+  return results;
+}
+
 export async function synthesizeDialogueAudio(
   turns: DialogueTurn[],
   preferred: TtsProvider,
@@ -115,15 +137,30 @@ export async function synthesizeDialogueAudio(
     return { buffer: null, log: ["No dialogue turns."] };
   }
 
+  const dialogueConcurrency = Math.min(
+    6,
+    Math.max(1, Number(process.env.DIALOGUE_TTS_CONCURRENCY ?? "4") || 4)
+  );
+
+  const [turnAudios, gapBuffers] = await Promise.all([
+    parallelMapByIndex(turns, dialogueConcurrency, (turn, _i) =>
+      synthesizeTurn(turn.text, turn.speaker, preferred, outputLanguage)
+    ),
+    parallelMapByIndex(turns, dialogueConcurrency, async (turn, i) => {
+      if (!turn.section_break || i === 0) return null;
+      const voice = azureVoiceForDialogue(outputLanguage, turn.speaker);
+      return microsoftSynthesizeBreak(voice, 480);
+    }),
+  ]);
+
   const parts: Buffer[] = [];
   for (let i = 0; i < turns.length; i++) {
     const turn = turns[i];
     if (turn.section_break && i > 0) {
-      const voice = azureVoiceForDialogue(outputLanguage, turn.speaker);
-      const gap = await microsoftSynthesizeBreak(voice, 480);
+      const gap = gapBuffers[i];
       if (gap) parts.push(gap);
     }
-    const buf = await synthesizeTurn(turn.text, turn.speaker, preferred, outputLanguage);
+    const buf = turnAudios[i];
     if (!buf) {
       log.push(`Dialogue turn ${i + 1} (${turn.speaker}) failed on all TTS providers.`);
       return { buffer: null, log };
