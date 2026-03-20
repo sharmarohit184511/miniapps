@@ -131,28 +131,31 @@ type DayCardProps = {
   day: DayBlock;
   isToday: boolean;
   generatingFor: string | null;
-  activeAudioDate: string | null;
+  /** Composite `date::lang` from feedPlaybackKey. */
+  playbackKey: string;
+  activeAudioKey: string | null;
   playing: boolean;
   briefingErr: Record<string, string>;
-  /** Known audio length per date (sec), from prior playback metadata. */
-  audioDurationByDate?: Record<string, number>;
-  onPlay: (date: string) => void;
+  /** Known audio length per playback key (sec), from prior playback metadata. */
+  audioDurationByKey?: Record<string, number>;
+  onPlay: () => void;
 };
 
 export function FigmaNewsDayCard({
   day,
   isToday,
   generatingFor,
-  activeAudioDate,
+  playbackKey,
+  activeAudioKey,
   playing,
   briefingErr,
-  audioDurationByDate,
+  audioDurationByKey,
   onPlay,
 }: DayCardProps) {
-  const gen = generatingFor === day.date;
-  const isActivePlaying = activeAudioDate === day.date && playing;
-  const bErr = briefingErr[day.date];
-  const durationSec = audioDurationByDate?.[day.date];
+  const gen = generatingFor === playbackKey;
+  const isActivePlaying = activeAudioKey === playbackKey && playing;
+  const bErr = briefingErr[playbackKey];
+  const durationSec = audioDurationByKey?.[playbackKey];
 
   return (
     <div className="mb-0 overflow-hidden rounded-xl bg-white/90 ring-1 ring-[#0078ad]/15">
@@ -160,7 +163,7 @@ export function FigmaNewsDayCard({
         <button
           type="button"
           disabled={!!generatingFor && !gen}
-          onClick={() => onPlay(day.date)}
+          onClick={onPlay}
           className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#0078ad] text-white shadow-[0_2px_8px_rgba(0,120,173,0.35)] transition hover:bg-[#006a99] active:scale-[0.97] disabled:opacity-50"
           aria-label={
             gen
@@ -179,18 +182,20 @@ export function FigmaNewsDayCard({
           )}
         </button>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            {isToday ? (
-              <span className="rounded-md bg-[#0078ad]/12 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-[#0078ad]">
-                Today
-              </span>
-            ) : (
+          {!isToday ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-[#0078ad]/90">
                 {day.dayLabel}
               </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-[13px] font-semibold leading-tight tracking-[-0.02em] text-[#1a1a1a]">
+            </div>
+          ) : null}
+          <p
+            className={
+              isToday
+                ? "text-[13px] font-semibold leading-tight tracking-[-0.02em] text-[#1a1a1a]"
+                : "mt-0.5 text-[13px] font-semibold leading-tight tracking-[-0.02em] text-[#1a1a1a]"
+            }
+          >
             {isToday ? day.dayLabel : day.date}
           </p>
           <p className="mt-0.5 text-[11px] leading-snug text-black/50">

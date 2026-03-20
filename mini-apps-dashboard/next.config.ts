@@ -11,7 +11,7 @@ const enableReactCompiler =
     process.env.ENABLE_REACT_COMPILER !== "false");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  /** Use default `.next` output + `next start` on Render (standalone path was missing on deploy). */
   reactCompiler: enableReactCompiler,
   serverExternalPackages: ["jsdom"],
   /** Stops Turbopack from using a parent folder’s lockfile as workspace root (fixes missing @supabase/supabase-js). */

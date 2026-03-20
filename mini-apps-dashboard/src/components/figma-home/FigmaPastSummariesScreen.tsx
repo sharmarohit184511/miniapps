@@ -11,6 +11,11 @@ import {
   type DayBlock,
 } from "@/components/figma-home/figma-news-day-card";
 import { useFigmaDayBriefingPlayer } from "@/components/figma-home/use-figma-day-briefing-player";
+import {
+  feedPlaybackKey,
+  FIGMA_WIDGET_LANG_STORAGE_KEY,
+  type FigmaWidgetLang,
+} from "@/components/figma-home/figma-widget-lang";
 
 const FEED_DAYS = 10;
 
@@ -19,17 +24,28 @@ type Props = {
 };
 
 export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
+  const [widgetLang, setWidgetLang] = useState<FigmaWidgetLang>("en");
   const [days, setDays] = useState<DayBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(FIGMA_WIDGET_LANG_STORAGE_KEY);
+      if (s === "hi" || s === "en") setWidgetLang(s);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const {
     audioRef,
     generatingFor,
     briefingErr,
-    activeAudioDate,
+    activeAudioKey,
     playing,
     startConversationBriefing,
-    audioDurationByDate,
+    audioDurationByKey,
   } = useFigmaDayBriefingPlayer();
 
   const load = useCallback(async () => {
@@ -37,7 +53,7 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
     setErr(null);
     try {
       const r = await fetch(
-        `/api/figma-daily-feed?days=${FEED_DAYS}&lang=en&fill=0`,
+        `/api/figma-daily-feed?days=${FEED_DAYS}&lang=${widgetLang}&fill=0`,
         { cache: "no-store" }
       );
       const j = await r.json();
@@ -56,7 +72,7 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [widgetLang]);
 
   useEffect(() => {
     load();
@@ -74,12 +90,35 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
           <ChevronLeft className="size-4" />
           Back to homepage
         </Link>
-        <h1 className="text-lg font-bold tracking-tight text-[#141414]">
-          Past summaries
-        </h1>
-        <p className="mt-0.5 text-xs text-black/50">
-          Newest past days first (conversation play per date)
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-[#141414]">
+              Past summaries
+            </h1>
+            <p className="mt-0.5 text-xs text-black/50">
+              Newest past days first (conversation play per date)
+            </p>
+          </div>
+          <label className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-[#013e7c]/80">
+            <span className="sr-only">Briefing language</span>
+            <select
+              value={widgetLang}
+              onChange={(e) => {
+                const next = e.target.value === "hi" ? "hi" : "en";
+                try {
+                  localStorage.setItem(FIGMA_WIDGET_LANG_STORAGE_KEY, next);
+                } catch {
+                  /* ignore */
+                }
+                setWidgetLang(next);
+              }}
+              className="rounded-lg border border-[#0078ad]/25 bg-white px-2 py-1.5 text-[12px] font-bold text-[#013e7c] shadow-sm outline-none ring-[#0078ad]/20 focus:ring-2"
+            >
+              <option value="en">English</option>
+              <option value="hi">हिंदी</option>
+            </select>
+          </label>
+        </div>
 
         <audio ref={audioRef} className="hidden" preload="auto" />
 
@@ -103,11 +142,12 @@ export function FigmaPastSummariesScreen({ briefingUrl }: Props) {
                 day={day}
                 isToday={false}
                 generatingFor={generatingFor}
-                activeAudioDate={activeAudioDate}
+                playbackKey={feedPlaybackKey(day.date, widgetLang)}
+                activeAudioKey={activeAudioKey}
                 playing={playing}
                 briefingErr={briefingErr}
-                audioDurationByDate={audioDurationByDate}
-                onPlay={startConversationBriefing}
+                audioDurationByKey={audioDurationByKey}
+                onPlay={() => startConversationBriefing(day.date, widgetLang)}
               />
             </div>
           ))}

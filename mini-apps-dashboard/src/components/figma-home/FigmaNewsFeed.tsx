@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Loader2, RefreshCw } from "lucide-react";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   buildTopicTeaser,
@@ -11,6 +11,15 @@ import {
 } from "@/components/figma-home/figma-news-day-card";
 import { useFigmaBriefing } from "@/components/figma-home/FigmaBriefingContext";
 import { useFigmaDayBriefingPlayer } from "@/components/figma-home/use-figma-day-briefing-player";
+import {
+  readFigmaBriefingAudioCache,
+  writeFigmaBriefingAudioCache,
+} from "@/components/figma-home/figma-briefing-audio-cache";
+import {
+  feedPlaybackKey,
+  FIGMA_WIDGET_LANG_STORAGE_KEY,
+  type FigmaWidgetLang,
+} from "@/components/figma-home/figma-widget-lang";
 import { DEFAULT_FIGMA_FEED_DAYS } from "@/lib/figma-daily-feed-data";
 
 const SUBLINE_MAX = 72;
@@ -19,6 +28,12 @@ function clipSub(s: string, max = SUBLINE_MAX): string {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max - 1)}…`;
+}
+
+function playbackKeyToDate(key: string | null): string | null {
+  if (!key) return null;
+  const i = key.indexOf("::");
+  return i > 0 ? key.slice(0, i) : key;
 }
 
 export function FigmaNewsFeed({
@@ -32,20 +47,29 @@ export function FigmaNewsFeed({
   sectionTitle?: string;
   initialFeed?: { days: DayBlock[] };
 }) {
+  const [widgetLang, setWidgetLang] = useState<FigmaWidgetLang>("en");
   const [days, setDays] = useState<DayBlock[]>(() => initialFeed?.days ?? []);
   const [loading, setLoading] = useState(() => initialFeed === undefined);
-  const [fillLoading, setFillLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const { setFeedMiniBar, setFeedAudio } = useFigmaBriefing();
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem(FIGMA_WIDGET_LANG_STORAGE_KEY);
+      if (s === "hi" || s === "en") setWidgetLang(s);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const {
     audioRef,
     generatingFor,
     briefingErr,
-    activeAudioDate,
+    activeAudioKey,
     playing,
     startConversationBriefing,
-    audioDurationByDate,
+    audioDurationByKey,
   } = useFigmaDayBriefingPlayer();
 
   const toggleFeedPlay = useCallback(() => {
@@ -77,13 +101,12 @@ export function FigmaNewsFeed({
   });
   feedControlsRef.current = { toggleFeedPlay, seekFeedBy, seekFeedTo };
 
-  const load = useCallback(async (fill: boolean) => {
-    if (fill) setFillLoading(true);
-    else setLoading(true);
+  const load = useCallback(async () => {
+    setLoading(true);
     setErr(null);
     try {
       const r = await fetch(
-        `/api/figma-daily-feed?days=${DEFAULT_FIGMA_FEED_DAYS}&lang=en&fill=${fill ? "1" : "0"}`,
+        `/api/figma-daily-feed?days=${DEFAULT_FIGMA_FEED_DAYS}&lang=${widgetLang}&fill=0`,
         { cache: "no-store" }
       );
       const j = await r.json();
@@ -101,15 +124,20 @@ export function FigmaNewsFeed({
       setDays([]);
     } finally {
       setLoading(false);
-      setFillLoading(false);
     }
-  }, []);
+  }, [widgetLang]);
 
-  /** No server payload: fetch on mount. Home passes `initialFeed` to avoid duplicate work. */
+  /** No server payload: fetch on mount. With `initialFeed` + English, skip until lang changes. */
   useEffect(() => {
-    if (initialFeed !== undefined) return;
-    load(false);
-  }, [load, initialFeed]);
+    if (initialFeed !== undefined && widgetLang === "en") {
+      setDays(initialFeed.days);
+      setLoading(false);
+      return;
+    }
+    load();
+  }, [load, initialFeed, widgetLang]);
+
+  const langLabel = widgetLang === "hi" ? "हिंदी" : "English";
 
   useEffect(() => {
     return () => {
@@ -118,38 +146,79 @@ export function FigmaNewsFeed({
     };
   }, [setFeedAudio, setFeedMiniBar]);
 
+  /** Prefetch cached audio URLs for feed days so localStorage is warm before first play. */
+  useEffect(() => {
+    if (!days.length) return;
+    let cancelled = false;
+    void (async () => {
+      for (const day of days) {
+        if (cancelled) break;
+        const date = day.date;
+        if (readFigmaBriefingAudioCache(date, widgetLang)) continue;
+        try {
+          const r = await fetch(
+            `/api/figma-day-briefing?date=${encodeURIComponent(date)}&lang=${widgetLang}`,
+            { cache: "no-store" }
+          );
+          if (!r.ok) continue;
+          const j = (await r.json()) as {
+            audio_url?: string;
+            briefingId?: string;
+          };
+          if (typeof j.audio_url === "string" && j.audio_url.trim()) {
+            writeFigmaBriefingAudioCache(date, widgetLang, {
+              audioUrl: j.audio_url.trim(),
+              ...(typeof j.briefingId === "string" && j.briefingId.trim()
+                ? { briefingId: j.briefingId.trim() }
+                : {}),
+            });
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [days, widgetLang]);
+
+  const activeDateForBar = playbackKeyToDate(activeAudioKey);
+  const generatingDateForBar = playbackKeyToDate(generatingFor);
+
   /** Sticky mini player: same date/day + topic cues as the day cards. */
   useEffect(() => {
     const today = days[0];
-    const g = generatingFor;
+    const g = generatingDateForBar;
     if (g) {
       const d = days.find((x) => x.date === g);
       setFeedMiniBar({
         eyebrow: "Preparing audio",
         title: d?.dayLabel ?? g,
-        subline: clipSub("Akshay & Kriti · Generating conversation briefing…"),
+        subline: clipSub(`Akshay & Kriti · ${langLabel} · Generating conversation briefing…`),
       });
       return;
     }
-    if (activeAudioDate && playing) {
-      const d = days.find((x) => x.date === activeAudioDate);
+    if (activeDateForBar && playing) {
+      const d = days.find((x) => x.date === activeDateForBar);
       const isToday = Boolean(d && today && d.date === today.date);
       const teaser = d ? buildTopicTeaser(d) : "";
       setFeedMiniBar({
         eyebrow: isToday ? "Today" : "Now playing",
-        title: d ? d.dayLabel : activeAudioDate,
+        title: d ? d.dayLabel : activeDateForBar,
         subline: clipSub(
           teaser
-            ? `${teaser} · Akshay & Kriti`
-            : "Conversation · Akshay & Kriti · English"
+            ? `${teaser} · Akshay & Kriti · ${langLabel}`
+            : `Conversation · Akshay & Kriti · ${langLabel}`
         ),
       });
       return;
     }
-    if (activeAudioDate && !playing) {
-      const d = days.find((x) => x.date === activeAudioDate);
+    if (activeDateForBar && !playing) {
+      const d = days.find((x) => x.date === activeDateForBar);
       const isToday = Boolean(d && today && d.date === today.date);
-      const dur = audioDurationByDate[activeAudioDate];
+      const dur =
+        activeAudioKey != null ? audioDurationByKey[activeAudioKey] : undefined;
       const teaser = d ? buildTopicTeaser(d) : "";
       const durPart =
         dur != null
@@ -157,9 +226,9 @@ export function FigmaNewsFeed({
           : "";
       setFeedMiniBar({
         eyebrow: isToday ? "Today" : "Paused",
-        title: d ? d.dayLabel : activeAudioDate,
+        title: d ? d.dayLabel : activeDateForBar,
         subline: clipSub(
-          `${durPart}${teaser || "Tap play to resume · English"}`
+          `${durPart}${teaser || `Tap play to resume · ${langLabel}`}`
         ),
       });
       return;
@@ -171,8 +240,8 @@ export function FigmaNewsFeed({
         title: today.dayLabel,
         subline: clipSub(
           teaser
-            ? `${teaser} · Tap play · English`
-            : "Akshay & Kriti · Tap play · English"
+            ? `${teaser} · Tap play · ${langLabel}`
+            : `Akshay & Kriti · Tap play · ${langLabel}`
         ),
       });
       return;
@@ -180,10 +249,13 @@ export function FigmaNewsFeed({
     setFeedMiniBar(null);
   }, [
     days,
-    generatingFor,
-    activeAudioDate,
+    generatingDateForBar,
+    activeDateForBar,
+    activeAudioKey,
     playing,
-    audioDurationByDate,
+    audioDurationByKey,
+    widgetLang,
+    langLabel,
     setFeedMiniBar,
   ]);
 
@@ -199,7 +271,7 @@ export function FigmaNewsFeed({
       const durationSec =
         typeof dur === "number" && Number.isFinite(dur) && dur > 0 ? dur : 0;
       const hasSrc = Boolean(el.currentSrc || el.src);
-      const active = hasSrc && activeAudioDate != null;
+      const active = hasSrc && activeAudioKey != null;
       const c = feedControlsRef.current;
       setFeedAudio({
         active,
@@ -233,10 +305,13 @@ export function FigmaNewsFeed({
       el.removeEventListener("seeked", sync);
       setFeedAudio(null);
     };
-  }, [activeAudioDate, setFeedAudio]);
+  }, [activeAudioKey, setFeedAudio]);
 
   const today = days[0];
   const pastDays = days.slice(1);
+  const todayPlaybackKey = today
+    ? feedPlaybackKey(today.date, widgetLang)
+    : "";
 
   return (
     <section className={cn("mt-8", className)} aria-label="News feed">
@@ -248,8 +323,8 @@ export function FigmaNewsFeed({
           "shadow-[0_2px_16px_rgba(1,62,124,0.07)]"
         )}
       >
-        <header className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div className="min-w-0">
             <h2 className="bg-gradient-to-r from-[#013e7c] via-[#0078ad] to-[#0a6b8a] bg-clip-text text-[1.5rem] font-black leading-[1.15] tracking-[-0.045em] text-transparent">
               {sectionTitle}
             </h2>
@@ -257,19 +332,25 @@ export function FigmaNewsFeed({
               Tap play for today&apos;s audio briefing
             </p>
           </div>
-          <button
-            type="button"
-            disabled={fillLoading || loading}
-            onClick={() => load(true)}
-            title="Refresh feed"
-            className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-[#0078ad] shadow-sm ring-1 ring-[#0078ad]/20 transition hover:bg-[#f5fafd] disabled:opacity-45"
-          >
-            {fillLoading ? (
-              <Loader2 className="size-[18px] animate-spin" />
-            ) : (
-              <RefreshCw className="size-[18px]" strokeWidth={2.25} />
-            )}
-          </button>
+          <label className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-[#013e7c]/80">
+            <span className="sr-only">Briefing language</span>
+            <select
+              value={widgetLang}
+              onChange={(e) => {
+                const next = e.target.value === "hi" ? "hi" : "en";
+                try {
+                  localStorage.setItem(FIGMA_WIDGET_LANG_STORAGE_KEY, next);
+                } catch {
+                  /* ignore */
+                }
+                setWidgetLang(next);
+              }}
+              className="rounded-lg border border-[#0078ad]/25 bg-white px-2 py-1.5 text-[12px] font-bold text-[#013e7c] shadow-sm outline-none ring-[#0078ad]/20 focus:ring-2"
+            >
+              <option value="en">English</option>
+              <option value="hi">हिंदी</option>
+            </select>
+          </label>
         </header>
 
         {err && (
@@ -290,11 +371,12 @@ export function FigmaNewsFeed({
             day={today}
             isToday
             generatingFor={generatingFor}
-            activeAudioDate={activeAudioDate}
+            playbackKey={todayPlaybackKey}
+            activeAudioKey={activeAudioKey}
             playing={playing}
             briefingErr={briefingErr}
-            audioDurationByDate={audioDurationByDate}
-            onPlay={startConversationBriefing}
+            audioDurationByKey={audioDurationByKey}
+            onPlay={() => startConversationBriefing(today.date, widgetLang)}
           />
         )}
 

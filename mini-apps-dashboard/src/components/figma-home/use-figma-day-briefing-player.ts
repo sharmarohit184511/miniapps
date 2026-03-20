@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  loadAllFigmaBriefingAudioUrls,
+  readFigmaBriefingAudioCache,
+  writeFigmaBriefingAudioCache,
+} from "@/components/figma-home/figma-briefing-audio-cache";
+import {
+  feedPlaybackKey,
+  type FigmaWidgetLang,
+} from "@/components/figma-home/figma-widget-lang";
 
 const POLL_MS = 1800;
 const POLL_MAX = 100;
@@ -22,17 +31,23 @@ function fetchWithTimeout(
 export function useFigmaDayBriefingPlayer() {
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [briefingErr, setBriefingErr] = useState<Record<string, string>>({});
-  const [activeAudioDate, setActiveAudioDate] = useState<string | null>(null);
+  /** Composite key `date::lang` for the track currently loaded / active. */
+  const [activeAudioKey, setActiveAudioKey] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const briefingInFlightRef = useRef<string | null>(null);
-  /** Last successful audio URL per feed date — replay with one tap (user gesture). */
-  const audioUrlByDateRef = useRef<Record<string, string>>({});
-  /** Feed date for the current `audio` src (for correlating loadedmetadata). */
-  const currentAudioDateRef = useRef<string | null>(null);
-  const [audioDurationByDate, setAudioDurationByDate] = useState<
+  /** Last successful audio URL per feedPlaybackKey — replay with one tap. */
+  const audioUrlByKeyRef = useRef<Record<string, string>>({});
+  /** Feed key for the current `audio` src (for correlating loadedmetadata). */
+  const currentAudioKeyRef = useRef<string | null>(null);
+  const [audioDurationByKey, setAudioDurationByKey] = useState<
     Record<string, number>
   >({});
+
+  useEffect(() => {
+    const fromDisk = loadAllFigmaBriefingAudioUrls();
+    Object.assign(audioUrlByKeyRef.current, fromDisk);
+  }, []);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -41,21 +56,21 @@ export function useFigmaDayBriefingPlayer() {
     const onPause = () => setPlaying(false);
     const onEnded = () => {
       setPlaying(false);
-      setActiveAudioDate(null);
+      setActiveAudioKey(null);
     };
     const onLoadedMetadata = () => {
-      const date = currentAudioDateRef.current;
+      const key = currentAudioKeyRef.current;
       const d = el.duration;
       if (
-        date &&
+        key &&
         typeof d === "number" &&
         Number.isFinite(d) &&
         d > 0 &&
         !Number.isNaN(d)
       ) {
-        setAudioDurationByDate((prev) => ({
+        setAudioDurationByKey((prev) => ({
           ...prev,
-          [date]: Math.round(d),
+          [key]: Math.round(d),
         }));
       }
     };
@@ -71,102 +86,126 @@ export function useFigmaDayBriefingPlayer() {
     };
   }, []);
 
-  const pollUntilAudio = useCallback(async (briefingId: string, date: string) => {
-    for (let i = 0; i < POLL_MAX; i++) {
-      await new Promise((r) => setTimeout(r, POLL_MS));
-      let r: Response;
-      try {
-        r = await fetchWithTimeout(
-          `/api/briefing-status/${encodeURIComponent(briefingId)}`,
-          { cache: "no-store" }
-        );
-      } catch (e) {
-        const msg =
-          e instanceof Error && e.name === "AbortError"
-            ? "Request timed out — check the briefing app is running."
-            : "Network error while checking status.";
-        setBriefingErr((prev) => ({ ...prev, [date]: msg }));
-        return;
-      }
-      let d: Record<string, unknown>;
-      try {
-        d = (await r.json()) as Record<string, unknown>;
-      } catch {
-        setBriefingErr((prev) => ({
-          ...prev,
-          [date]: "Invalid response from briefing server.",
-        }));
-        return;
-      }
-      if (!r.ok) {
-        const errMsg =
-          typeof d.error === "string"
-            ? d.error
-            : r.status === 404
-              ? "Briefing not found — try again."
-              : `Briefing status error (${r.status})`;
-        setBriefingErr((prev) => ({ ...prev, [date]: errMsg }));
-        return;
-      }
-      if (d.status === "failed") {
-        setBriefingErr((prev) => ({
-          ...prev,
-          [date]:
-            typeof d.error === "string" ? d.error : "Briefing failed",
-        }));
-        return;
-      }
-      if (d.status === "completed" && typeof d.audio_url === "string" && d.audio_url) {
-        const el = audioRef.current;
-        if (el) {
-          const url = d.audio_url;
-          audioUrlByDateRef.current[date] = url;
-          try {
-            el.pause();
-            currentAudioDateRef.current = date;
-            el.src = url;
-            setActiveAudioDate(date);
-            await el.play();
-          } catch (playErr) {
-            const name =
-              playErr && typeof playErr === "object" && "name" in playErr
-                ? String((playErr as { name: string }).name)
-                : "";
-            if (name === "NotAllowedError") {
-              setBriefingErr((prev) => ({
-                ...prev,
-                [date]:
-                  "Ready — tap play again to listen (browser blocked auto-play).",
-              }));
-            } else {
-              setBriefingErr((prev) => ({
-                ...prev,
-                [date]: "Could not start playback — tap play to try again.",
-              }));
+  const pollUntilAudio = useCallback(
+    async (briefingId: string, date: string, lang: FigmaWidgetLang) => {
+      const key = feedPlaybackKey(date, lang);
+      for (let i = 0; i < POLL_MAX; i++) {
+        await new Promise((r) => setTimeout(r, POLL_MS));
+        let r: Response;
+        try {
+          r = await fetchWithTimeout(
+            `/api/briefing-status/${encodeURIComponent(briefingId)}`,
+            { cache: "no-store" }
+          );
+        } catch (e) {
+          const msg =
+            e instanceof Error && e.name === "AbortError"
+              ? "Request timed out — check the briefing app is running."
+              : "Network error while checking status.";
+          setBriefingErr((prev) => ({ ...prev, [key]: msg }));
+          return;
+        }
+        let d: Record<string, unknown>;
+        try {
+          d = (await r.json()) as Record<string, unknown>;
+        } catch {
+          setBriefingErr((prev) => ({
+            ...prev,
+            [key]: "Invalid response from briefing server.",
+          }));
+          return;
+        }
+        if (!r.ok) {
+          const errMsg =
+            typeof d.error === "string"
+              ? d.error
+              : r.status === 404
+                ? "Briefing not found — try again."
+                : `Briefing status error (${r.status})`;
+          setBriefingErr((prev) => ({ ...prev, [key]: errMsg }));
+          return;
+        }
+        if (d.status === "failed") {
+          setBriefingErr((prev) => ({
+            ...prev,
+            [key]:
+              typeof d.error === "string" ? d.error : "Briefing failed",
+          }));
+          return;
+        }
+        if (d.status === "completed") {
+          const url =
+            typeof d.audio_url === "string" && d.audio_url.trim()
+              ? d.audio_url.trim()
+              : "";
+          if (!url) {
+            setBriefingErr((prev) => ({
+              ...prev,
+              [key]:
+                "Briefing completed but no audio URL — check server logs and Supabase storage.",
+            }));
+            return;
+          }
+          const el = audioRef.current;
+          if (el) {
+            audioUrlByKeyRef.current[key] = url;
+            writeFigmaBriefingAudioCache(date, lang, { audioUrl: url, briefingId });
+            try {
+              el.pause();
+              currentAudioKeyRef.current = key;
+              el.src = url;
+              setActiveAudioKey(key);
+              await el.play();
+            } catch (playErr) {
+              const name =
+                playErr && typeof playErr === "object" && "name" in playErr
+                  ? String((playErr as { name: string }).name)
+                  : "";
+              if (name === "NotAllowedError") {
+                setBriefingErr((prev) => ({
+                  ...prev,
+                  [key]:
+                    "Ready — tap play again to listen (browser blocked auto-play).",
+                }));
+              } else {
+                setBriefingErr((prev) => ({
+                  ...prev,
+                  [key]: "Could not start playback — tap play to try again.",
+                }));
+              }
             }
           }
+          return;
         }
-        return;
       }
-    }
-    setBriefingErr((prev) => ({
-      ...prev,
-      [date]:
-        "Still generating after several minutes. If you use Redis, run the briefing worker or set BRIEFING_FIGMA_DAY_USE_QUEUE=0 (default). Open the full briefing app to retry.",
-    }));
-  }, []);
+      setBriefingErr((prev) => ({
+        ...prev,
+        [key]:
+          "Still generating after several minutes. If you use Redis, run the briefing worker or set BRIEFING_FIGMA_DAY_USE_QUEUE=0 (default). Open the full briefing app to retry.",
+      }));
+    },
+    []
+  );
 
   const startConversationBriefing = useCallback(
-    async (date: string) => {
+    async (date: string, lang: FigmaWidgetLang) => {
+      const key = feedPlaybackKey(date, lang);
       if (briefingInFlightRef.current) {
-        if (briefingInFlightRef.current !== date) return;
+        if (briefingInFlightRef.current !== key) return;
         return;
       }
 
       const el = audioRef.current;
-      const cachedUrl = audioUrlByDateRef.current[date];
+      let cachedUrl = audioUrlByKeyRef.current[key];
+      if (!cachedUrl) {
+        const persisted = readFigmaBriefingAudioCache(date, lang);
+        if (persisted?.audioUrl) {
+          cachedUrl = persisted.audioUrl;
+          audioUrlByKeyRef.current[key] = cachedUrl;
+        }
+      }
 
-      if (activeAudioDate === date && playing) {
+      if (activeAudioKey === key && playing) {
         el?.pause();
         return;
       }
@@ -174,23 +213,23 @@ export function useFigmaDayBriefingPlayer() {
       if (cachedUrl && el) {
         try {
           el.pause();
-          currentAudioDateRef.current = date;
+          currentAudioKeyRef.current = key;
           el.src = cachedUrl;
-          setActiveAudioDate(date);
+          setActiveAudioKey(key);
           await el.play();
-          setBriefingErr((prev) => ({ ...prev, [date]: "" }));
+          setBriefingErr((prev) => ({ ...prev, [key]: "" }));
           return;
         } catch {
           setBriefingErr((prev) => ({
             ...prev,
-            [date]: "Tap play again to listen.",
+            [key]: "Tap play again to listen.",
           }));
           return;
         }
       }
 
       if (
-        activeAudioDate === date &&
+        activeAudioKey === key &&
         el &&
         el.src &&
         Number.isFinite(el.duration) &&
@@ -206,13 +245,13 @@ export function useFigmaDayBriefingPlayer() {
         return;
       }
 
-      setBriefingErr((prev) => ({ ...prev, [date]: "" }));
-      briefingInFlightRef.current = date;
+      setBriefingErr((prev) => ({ ...prev, [key]: "" }));
+      briefingInFlightRef.current = key;
       try {
         const res = await fetchWithTimeout("/api/figma-day-briefing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date }),
+          body: JSON.stringify({ date, lang }),
           timeoutMs: 120_000,
         });
         const j = (await res.json()) as {
@@ -225,13 +264,13 @@ export function useFigmaDayBriefingPlayer() {
         if (!res.ok) {
           setBriefingErr((prev) => ({
             ...prev,
-            [date]: typeof j.error === "string" ? j.error : "Could not start",
+            [key]: typeof j.error === "string" ? j.error : "Could not start",
           }));
           return;
         }
         const id = j.briefingId;
         if (!id) {
-          setBriefingErr((prev) => ({ ...prev, [date]: "No briefing id" }));
+          setBriefingErr((prev) => ({ ...prev, [key]: "No briefing id" }));
           return;
         }
 
@@ -245,11 +284,15 @@ export function useFigmaDayBriefingPlayer() {
         if (directUrl && el) {
           try {
             el.pause();
-            currentAudioDateRef.current = date;
+            currentAudioKeyRef.current = key;
             el.src = directUrl;
-            audioUrlByDateRef.current[date] = directUrl;
-            setActiveAudioDate(date);
-            setBriefingErr((prev) => ({ ...prev, [date]: "" }));
+            audioUrlByKeyRef.current[key] = directUrl;
+            writeFigmaBriefingAudioCache(date, lang, {
+              audioUrl: directUrl,
+              briefingId: id,
+            });
+            setActiveAudioKey(key);
+            setBriefingErr((prev) => ({ ...prev, [key]: "" }));
             await el.play();
           } catch (playErr) {
             const name =
@@ -259,21 +302,21 @@ export function useFigmaDayBriefingPlayer() {
             if (name === "NotAllowedError") {
               setBriefingErr((prev) => ({
                 ...prev,
-                [date]:
+                [key]:
                   "Ready — tap play again to listen (browser blocked auto-play).",
               }));
             } else {
               setBriefingErr((prev) => ({
                 ...prev,
-                [date]: "Could not start playback — tap play to try again.",
+                [key]: "Could not start playback — tap play to try again.",
               }));
             }
           }
           return;
         }
 
-        setGeneratingFor(date);
-        await pollUntilAudio(id, date);
+        setGeneratingFor(key);
+        await pollUntilAudio(id, date, lang);
       } catch (e) {
         const msg =
           e instanceof Error && e.name === "AbortError"
@@ -281,23 +324,24 @@ export function useFigmaDayBriefingPlayer() {
             : "Network error";
         setBriefingErr((prev) => ({
           ...prev,
-          [date]: msg,
+          [key]: msg,
         }));
       } finally {
         briefingInFlightRef.current = null;
         setGeneratingFor(null);
       }
     },
-    [activeAudioDate, playing, pollUntilAudio]
+    [activeAudioKey, playing, pollUntilAudio]
   );
 
   return {
     audioRef,
     generatingFor,
     briefingErr,
-    activeAudioDate,
+    /** Composite key `date::lang` or null. */
+    activeAudioKey,
     playing,
     startConversationBriefing,
-    audioDurationByDate,
+    audioDurationByKey,
   };
 }

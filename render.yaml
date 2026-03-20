@@ -6,10 +6,10 @@ services:
     runtime: node
     plan: free # change if needed
     rootDir: mini-apps-dashboard
-    # Timed phases (logs real/user/sys) + production build; postbuild copies static assets for standalone
+    # Timed phases (logs real/user/sys) + production build
     buildCommand: time npm ci && time npm run build
-    # Standalone server (see next.config.ts output + package.json postbuild)
-    startCommand: node .next/standalone/server.js
+    # Standard Next server (uses .next from build; honors Render PORT)
+    startCommand: npm run start
     envVars:
       - key: NODE_VERSION
         value: "22"

@@ -21,6 +21,8 @@ export type BriefingRow = {
   audio_url: string | null;
   error_message: string | null;
   pipeline_progress?: unknown;
+  /** YYYY-MM-DD when this job is the figma feed conversation for that calendar day. */
+  figma_digest_date?: string | null;
   created_at: string;
   updated_at: string;
 };

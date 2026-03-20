@@ -20,6 +20,24 @@ import { normalizeDialogueSpeaker } from "@/lib/dialogue-speakers";
 
 type MemoryBriefing = DevBriefingEntry;
 
+const FIGMA_DIGEST_IN_PROGRESS: BriefingStatus[] = [
+  "pending",
+  "extracting",
+  "summarizing",
+  "generating_audio",
+];
+
+export type CreateBriefingOptions = {
+  /** YYYY-MM-DD when this job is the figma feed conversation for that calendar day. */
+  figmaDigestDate?: string;
+};
+
+/** Server-side reuse for figma day briefing: completed audio or an existing in-flight job. */
+export type FigmaDigestReuseResult =
+  | { kind: "completed"; id: string; audio_url: string }
+  | { kind: "in_progress"; id: string }
+  | null;
+
 export type BriefingWithSources = {
   id: string;
   status: BriefingStatus;
@@ -116,19 +134,113 @@ function rowToBriefing(row: BriefingRow, sourceRows: BriefingSourceRow[]): Brief
   };
 }
 
+function rowMatchesFigmaDigest(
+  row: BriefingRow,
+  digestDate: string,
+  ttsProvider: TtsProvider,
+  outputLanguage: OutputLanguage
+): boolean {
+  const ymd = row.figma_digest_date?.trim().slice(0, 10);
+  if (!ymd || ymd !== digestDate) return false;
+  const tp: TtsProvider = row.tts_provider === "microsoft" ? "microsoft" : "elevenlabs";
+  if (tp !== ttsProvider) return false;
+  return parseOutputLanguage(row.output_language) === outputLanguage;
+}
+
+async function loadAllDevBriefingEntries(): Promise<MemoryBriefing[]> {
+  const disk = await devBriefingListAll();
+  const byId = new Map<string, MemoryBriefing>();
+  for (const e of disk) byId.set(e.row.id, e);
+  for (const e of memoryStore.values()) byId.set(e.row.id, e);
+  return Array.from(byId.values());
+}
+
+/**
+ * Find a figma-digest briefing to reuse: latest completed with audio, else latest in-progress.
+ * Ignores `failed` rows so a new generation can start after errors.
+ */
+export async function findFigmaDigestBriefingForReuse(
+  digestDate: string,
+  ttsProvider: TtsProvider,
+  outputLanguage: OutputLanguage = "en"
+): Promise<FigmaDigestReuseResult> {
+  const date = digestDate.slice(0, 10);
+
+  if (supabase) {
+    const { data: completed, error: cErr } = await supabase
+      .from("briefings")
+      .select("id, audio_url")
+      .eq("figma_digest_date", date)
+      .eq("tts_provider", ttsProvider)
+      .eq("output_language", outputLanguage)
+      .eq("status", "completed")
+      .not("audio_url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (cErr) {
+      console.error("[briefings] findFigmaDigest completed:", cErr.message);
+    } else {
+      const row = completed?.[0];
+      const url = row && typeof row.audio_url === "string" ? row.audio_url.trim() : "";
+      if (row?.id && url) return { kind: "completed", id: row.id, audio_url: url };
+    }
+
+    const { data: inflight, error: iErr } = await supabase
+      .from("briefings")
+      .select("id")
+      .eq("figma_digest_date", date)
+      .eq("tts_provider", ttsProvider)
+      .eq("output_language", outputLanguage)
+      .in("status", [...FIGMA_DIGEST_IN_PROGRESS])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (iErr) {
+      console.error("[briefings] findFigmaDigest in_progress:", iErr.message);
+      return null;
+    }
+    const ir = inflight?.[0];
+    if (ir?.id) return { kind: "in_progress", id: ir.id };
+    return null;
+  }
+
+  const entries = await loadAllDevBriefingEntries();
+  const matching = entries
+    .map((e) => e.row)
+    .filter((r) => rowMatchesFigmaDigest(r, date, ttsProvider, outputLanguage))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  for (const r of matching) {
+    if (r.status === "completed") {
+      const url = r.audio_url?.trim() ?? "";
+      if (url) return { kind: "completed", id: r.id, audio_url: url };
+    }
+  }
+  for (const r of matching) {
+    if (FIGMA_DIGEST_IN_PROGRESS.includes(r.status as BriefingStatus)) {
+      return { kind: "in_progress", id: r.id };
+    }
+  }
+  return null;
+}
+
 export async function createBriefing(
   sources: Omit<Source, "id">[],
   ttsProvider: TtsProvider = "elevenlabs",
-  outputLanguage: OutputLanguage = "en"
+  outputLanguage: OutputLanguage = "en",
+  options?: CreateBriefingOptions
 ): Promise<string | null> {
   if (supabase) {
+    const insertRow: Record<string, unknown> = {
+      status: "pending",
+      tts_provider: ttsProvider,
+      output_language: outputLanguage,
+    };
+    if (options?.figmaDigestDate?.trim()) {
+      insertRow.figma_digest_date = options.figmaDigestDate.trim().slice(0, 10);
+    }
     const { data: briefing, error: briefingError } = await supabase
       .from("briefings")
-      .insert({
-        status: "pending",
-        tts_provider: ttsProvider,
-        output_language: outputLanguage,
-      })
+      .insert(insertRow)
       .select("id")
       .single();
     if (briefingError || !briefing) return null;
@@ -158,6 +270,7 @@ export async function createBriefing(
     audio_url: null,
     error_message: null,
     pipeline_progress: null,
+    figma_digest_date: options?.figmaDigestDate?.trim().slice(0, 10) ?? null,
     created_at: now,
     updated_at: now,
   };

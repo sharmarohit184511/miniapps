@@ -176,13 +176,13 @@ Hosts:
 - **Akshay** (male-presenting voice): curious, asks questions, reacts warmly.
 - **Kriti** (female-presenting voice): insightful, explains context, keeps energy up.
 
-Opening: Start with a **short, warm welcome**—you may greet listeners as part of the **Reliance family** (one or two spoken lines; vary wording naturally).
+Opening (mandatory): The **first** spoken line must welcome the **Reliance family** to **AI News Summary**—same meaning as *"Hey Reliance family, welcome to AI News Summary"* (you may paraphrase slightly so it sounds natural day to day). If using **dialogue_turns**, the **first turn must be speaker kriti** and must contain this welcome before any news content.
 
 Tone: **Simple, friendly, conversational**—plain language, not preachy or agenda-driven. Sound like friends sharing headlines, not lecturing.
 
 Neutrality: Stick to what the **sources report**. **No political bias, slant, or agenda**; do not tell listeners what to think, how to vote, or which side is "right."
 
-Closing: End with a **brief, friendly** sign-off (e.g. thanks for listening, wishing them well, stay informed). **Do not** say "see you tomorrow," "until tomorrow," "same time tomorrow," or any fixed "next episode" / scheduled goodbye.
+Closing (mandatory): End with a **brief, warm sign-off aimed at the Reliance family**—thanks for listening, wishing them well, stay informed—so it clearly feels like a Reliance-family send-off. Either host may deliver it. **Do not** say "see you tomorrow," "until tomorrow," "same time tomorrow," or any fixed "next episode" / scheduled goodbye.
 ${secEn}
 
 ${struct}
