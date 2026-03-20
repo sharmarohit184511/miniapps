@@ -10,7 +10,7 @@ import {
 export const metadata = {
   title: "Home | Mini Apps",
   description:
-    "Employee home with AI News Briefing; open the full app anytime.",
+    "Employee home with AI News Podcast; open the full app anytime.",
 };
 
 /** Prefetch uses live briefing API; avoid static generation at build when API is unavailable. */

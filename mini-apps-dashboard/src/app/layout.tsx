@@ -9,7 +9,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Mini Apps",
-  description: "Employee home with AI News Briefing",
+  description: "Employee home with AI News Podcast",
 };
 
 export default function RootLayout({

@@ -11,7 +11,6 @@ import {
   Sparkles,
   Volume2,
   X,
-  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,50 +29,38 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   {
-    kicker: "Smarter mornings",
-    title: "News that listens to you",
+    kicker: "Your daily edge",
+    title: "Headlines as a short podcast",
     lead:
-      "Turn today’s headlines into a natural two-host audio briefing—so you absorb what matters without living in the feed.",
+      "AI News Podcast turns each day’s top stories into one listenable flow—one place on your home screen, one tap to play. Less doom-scrolling, more knowing what actually moved the day.",
     highlights: [
-      { Icon: Layers, text: "Multi-topic digest in one flow" },
-      { Icon: Clock, text: "Minutes, not endless scrolling" },
-      { Icon: Sparkles, text: "Built for your daily home screen" },
+      { Icon: Layers, text: "World, business, tech, sports—in one episode-shaped digest" },
+      { Icon: Clock, text: "Designed for a commute or coffee break, not the infinite feed" },
+      { Icon: Sparkles, text: "Fresh when you generate it—built for how you start the day" },
     ],
     heroIcon: Sparkles,
   },
   {
-    kicker: "Conversational audio",
-    title: "Akshay & Kriti, on demand",
+    kicker: "Why it sticks",
+    title: "Two hosts, zero homework",
     lead:
-      "Questions, context, and handoffs between sections—it feels like a short podcast written for the stories you care about.",
+      "Akshay and Kriti carry the conversation—questions, context, and handoffs between topics—so it feels like a real show, not a robot reading bullets. Listen hands-free while you move.",
     highlights: [
-      { Icon: Headphones, text: "Hands-free while you move" },
-      { Icon: Volume2, text: "Clear pacing you can play or pause" },
-      { Icon: Zap, text: "Energy that keeps you engaged" },
+      { Icon: Headphones, text: "Natural dialogue, not a monotone readout" },
+      { Icon: Volume2, text: "Play, pause, replay—your pace" },
+      { Icon: Sparkles, text: "Engaging enough that you’ll finish the episode" },
     ],
     heroIcon: Headphones,
-  },
-  {
-    kicker: "Designed for real life",
-    title: "Experience you’ll actually use",
-    lead:
-      "We optimized for glanceable summaries, one-tap playback, and listening when reading isn’t an option—commute, break, or between meetings.",
-    highlights: [
-      { Icon: Zap, text: "Faster path from headline to insight" },
-      { Icon: Clock, text: "Respects your attention, not the algorithm" },
-      { Icon: Play, text: "Pick a day, tap play—that’s it" },
-    ],
-    heroIcon: Zap,
   },
   {
     kicker: "You’re set",
     title: "Start in seconds",
     lead:
-      "Scroll to AI News summary, hit play on any day, or open the full briefing app for history, topics, and deeper control.",
+      "Scroll to AI News Podcast on this home screen, pick a day, tap play. Want history, topics, or your own links? Use Open full app in the header anytime.",
     highlights: [
-      { Icon: Layers, text: "Written summaries expand on tap" },
-      { Icon: Sparkles, text: "AI summaries when you want depth" },
-      { Icon: Play, text: "Full app for power users" },
+      { Icon: Play, text: "Today or any recent day—tap play and listen" },
+      { Icon: Layers, text: "Full app for power listeners and custom sources" },
+      { Icon: Clock, text: "Replay when you need a refresher" },
     ],
     heroIcon: Play,
   },

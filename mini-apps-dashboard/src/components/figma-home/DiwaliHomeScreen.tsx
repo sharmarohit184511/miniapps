@@ -294,11 +294,11 @@ function DiwaliHomeScreenInner({ briefingUrl, initialFeed }: Props) {
           </div>
         </section>
 
-        {/* AI News summary — live feed */}
+        {/* AI News Podcast — live feed */}
         <section className="px-6 pb-5">
           <FigmaNewsFeed
             className="mt-0"
-            sectionTitle="AI News summary"
+            sectionTitle="AI News Podcast"
             initialFeed={initialFeed}
           />
         </section>

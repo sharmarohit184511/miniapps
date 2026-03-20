@@ -40,14 +40,14 @@ export function AiNewsBriefingLaunch({ briefingUrl }: Props) {
           </Link>
         )}
         <p className="w-full text-sm text-muted-foreground sm:w-auto sm:self-center">
-          AI News Briefing runs at{" "}
+          AI News Podcast runs at{" "}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">{briefingUrl}</code>{" "}
           in this deployment.
         </p>
       </div>
       <div className="overflow-hidden rounded-2xl border bg-muted/30 shadow-inner">
         <iframe
-          title="AI News Briefing"
+          title="AI News Podcast"
           src={briefingUrl}
           className="h-[min(85dvh,720px)] w-full bg-background"
           allow="clipboard-read; clipboard-write"

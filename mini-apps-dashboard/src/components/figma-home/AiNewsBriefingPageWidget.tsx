@@ -11,7 +11,7 @@ export function AiNewsBriefingPageWidget() {
   return (
     <section
       className="rounded-2xl border-2 border-[#0078ad]/20 bg-gradient-to-br from-white via-[#f5fafd] to-[#e8f4fc] p-4 shadow-[0_8px_30px_rgba(1,62,124,0.08)]"
-      aria-label="AI News Briefing widget"
+      aria-label="AI News Podcast widget"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -19,7 +19,7 @@ export function AiNewsBriefingPageWidget() {
             <Sparkles className="size-4" aria-hidden />
           </span>
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#013e7c]">
-            AI News Briefing
+            AI News Podcast
           </span>
         </div>
         <Link

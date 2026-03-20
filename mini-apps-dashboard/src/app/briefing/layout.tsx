@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "AI News Briefing",
-  description: "Generate a 2-minute audio summary from news URLs or text",
+  title: "AI News Podcast",
+  description: "Generate a short audio podcast from news URLs or text",
 };
 
 export const viewport: Viewport = {

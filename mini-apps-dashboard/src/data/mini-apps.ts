@@ -4,7 +4,7 @@ export const MINI_APPS: MiniApp[] = [
   {
     id: "1",
     slug: "ai-news-briefing",
-    title: "AI News Briefing",
+    title: "AI News Podcast",
     description:
       "Figma employee-home journey with the briefing widget in-context. Then open the full app for audio generation.",
   },

@@ -165,7 +165,7 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
           )}
         >
           <iframe
-            title="AI News Briefing"
+            title="AI News Podcast"
             src={`${briefingUrl}${briefingUrl.includes("?") ? "&" : "?"}figma_demo=1`}
             className="h-[180px] w-full bg-[#f5fafd]"
             allow="clipboard-read; clipboard-write; autoplay"
@@ -292,7 +292,7 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
         )}
         <div className="relative min-h-0 overflow-visible">
           <iframe
-            title="AI News Briefing"
+            title="AI News Podcast"
             src={`${briefingUrl}${briefingUrl.includes("?") ? "&" : "?"}figma_demo=1`}
             className={cn(
               "w-full bg-[#f5fafd] transition-opacity duration-200",

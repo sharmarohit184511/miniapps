@@ -77,7 +77,7 @@ function tertiaryPastLine(
   day: DayBlock,
   durationSec?: number
 ): string {
-  const kind = day.digestReady ? "AI summary" : "Headlines";
+  const kind = day.digestReady ? "Daily podcast" : "Headlines";
   const teaser = buildTopicTeaser(day);
   const dur =
     durationSec !== undefined ? formatBriefingMinutes(durationSec) : null;

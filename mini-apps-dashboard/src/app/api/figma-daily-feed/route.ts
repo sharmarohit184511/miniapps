@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error,
-        hint: "AI News Briefing runs in this app; see .env.example.",
+        hint: "AI News Podcast runs in this app; see .env.example.",
         days: [],
       },
       { status: 502 }

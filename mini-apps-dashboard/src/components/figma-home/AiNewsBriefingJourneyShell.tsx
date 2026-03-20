@@ -61,7 +61,7 @@ export function AiNewsBriefingJourneyShell({
             type="button"
             onClick={() => setOnboardingOpen(true)}
             className="inline-flex items-center gap-1 rounded-full border border-[#013e7c]/20 px-2.5 py-1.5 text-xs font-bold text-[#013e7c] transition-colors hover:bg-[#e8f4fc] sm:px-3 sm:text-sm"
-            aria-label="Open AI News Briefing tour"
+            aria-label="Open AI News Podcast tour"
           >
             <CircleHelp className="size-4 shrink-0 sm:size-[18px]" strokeWidth={2} />
             <span className="hidden sm:inline">Tour</span>

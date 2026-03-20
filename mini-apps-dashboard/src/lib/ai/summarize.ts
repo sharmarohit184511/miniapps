@@ -176,11 +176,13 @@ Hosts:
 - **Akshay** (male-presenting voice): curious, asks questions, reacts warmly.
 - **Kriti** (female-presenting voice): insightful, explains context, keeps energy up.
 
-Opening (mandatory): The **first** spoken line must welcome the **Reliance family** to **AI News Summary**—same meaning as *"Hey Reliance family, welcome to AI News Summary"* (you may paraphrase slightly so it sounds natural day to day). If using **dialogue_turns**, the **first turn must be speaker kriti** and must contain this welcome before any news content.
+Opening (mandatory): The **first** spoken line must welcome the **Reliance family** to **AI News Podcast**—same meaning as *"Hey Reliance family, welcome to AI News Podcast"* (you may paraphrase slightly so it sounds natural day to day). If using **dialogue_turns**, the **first turn must be speaker kriti** and must contain this welcome before any news content.
 
-Tone: **Simple, friendly, conversational**—plain language, not preachy or agenda-driven. Sound like friends sharing headlines, not lecturing.
+**Factual density (critical):** After the welcome, **every** few lines must introduce **new, concrete information** from the article excerpts below—**companies, people, numbers, dates, places, or reported events**. Do **not** pad with vague English filler ("lots going on", "interesting times", "big story" without saying **what** happened), long mutual agreement, or hosts echoing each other without adding facts. If you catch yourself being generic, **insert the next specific fact** from the sources. **summary_points** bullets must each contain **at least one checkable fact** from the text (not opinion).
 
-Neutrality: Stick to what the **sources report**. **No political bias, slant, or agenda**; do not tell listeners what to think, how to vote, or which side is "right."
+Tone: **Simple, friendly, conversational**—plain language, not preachy or agenda-driven. Sound like friends sharing **actual headlines and details**, not lecturing.
+
+Neutrality: Stick to what the **sources report**. **No political bias, slant, or agenda**; do not tell listeners what to think, how to vote, or which side is "right." **Never invent** quotes, stats, or events not supported by the excerpts; if a source body contains **EXTRACTION FAILED** or headline-level-only markers, say on-air that you only have the link/topic and stay cautious—do not fabricate detail.
 
 Closing (mandatory): End with a **brief, warm sign-off aimed at the Reliance family**—thanks for listening, wishing them well, stay informed—so it clearly feels like a Reliance-family send-off. Either host may deliver it. **Do not** say "see you tomorrow," "until tomorrow," "same time tomorrow," or any fixed "next episode" / scheduled goodbye.
 ${secEn}
@@ -284,7 +286,11 @@ function buildUserMessage(
     n >= 2
       ? `\n\n---\n\nFINAL_CHECK: Your dialogue will be read aloud. Listeners added **${n} separate news links**. They must hear **${n} distinct stories** (or clearly linked pairs), not one long recap of a single site.`
       : "";
-  return head + combined + tail;
+  const factual =
+    lang === "en"
+      ? `\n\n---\n\nANCHOR: Ground the podcast in the excerpts above. Prioritize **who did what, when, where, and any numbers** from the text. Minimize meta banter; maximize **new facts per turn** after the intro.`
+      : "";
+  return head + combined + tail + factual;
 }
 
 function fallbackMonologuePrefix(lang: OutputLanguage): string {

@@ -120,7 +120,7 @@ export function FigmaNewsFeed({
       }
       setDays(Array.isArray(j.days) ? j.days : []);
     } catch {
-      setErr("Network error — is the briefing app running?");
+      setErr("Network error — is the app running?");
       setDays([]);
     } finally {
       setLoading(false);
@@ -195,7 +195,7 @@ export function FigmaNewsFeed({
       setFeedMiniBar({
         eyebrow: "Preparing audio",
         title: d?.dayLabel ?? g,
-        subline: clipSub(`Akshay & Kriti · ${langLabel} · Generating conversation briefing…`),
+        subline: clipSub(`Akshay & Kriti · ${langLabel} · Generating your podcast…`),
       });
       return;
     }
@@ -329,11 +329,11 @@ export function FigmaNewsFeed({
               {sectionTitle}
             </h2>
             <p className="mt-1.5 text-[12px] font-medium leading-snug text-black/48">
-              Tap play for today&apos;s audio briefing
+              Tap play for today&apos;s AI News Podcast
             </p>
           </div>
           <label className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-[#013e7c]/80">
-            <span className="sr-only">Briefing language</span>
+            <span className="sr-only">Podcast language</span>
             <select
               value={widgetLang}
               onChange={(e) => {

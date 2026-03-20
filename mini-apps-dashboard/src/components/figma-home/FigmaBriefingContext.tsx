@@ -33,7 +33,7 @@ function formatDuration(sec: number | null): string {
 }
 
 const defaultState: FigmaBriefingState = {
-  headline: "AI News Briefing",
+  headline: "AI News Podcast",
   glimpse: INITIAL_GLIMPSE,
   sourceCount: 0,
   durationSec: null,

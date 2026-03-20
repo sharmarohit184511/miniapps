@@ -24,7 +24,7 @@ export default async function BriefingHomePage({ searchParams }: PageProps) {
         <div className="mx-auto grid w-full max-w-lg grid-cols-1 gap-3 px-4 py-4 sm:max-w-2xl sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-4 sm:py-3">
           <MiniAppsDashboardLink className="inline-flex h-11 items-center justify-center rounded-full border-2 border-primary/15 bg-card px-4 text-sm font-semibold text-primary transition-colors hover:border-primary/30 sm:h-10 sm:justify-self-start" />
           <h1 className="text-center text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-lg sm:justify-self-center">
-            AI News Briefing
+            AI News Podcast
           </h1>
           <Link
             href="/briefing/history"
@@ -37,7 +37,7 @@ export default async function BriefingHomePage({ searchParams }: PageProps) {
       <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-6 sm:max-w-2xl sm:px-6 sm:pt-8">
         <p className="mb-6 text-base leading-relaxed text-muted-foreground sm:mb-8 sm:text-[0.95rem]">
           Add news URLs or paste text—or search by topic to load articles automatically—then get a
-          conversational audio briefing.
+          conversational AI News Podcast episode.
         </p>
         <BriefingForm initialBriefingId={id ?? null} />
       </main>

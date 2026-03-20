@@ -3,7 +3,7 @@ import { FigmaPastSummariesScreen } from "@/components/figma-home/FigmaPastSumma
 import { getBriefingAppUrl } from "@/lib/briefing-public-url";
 
 export const metadata = {
-  title: "Past summaries | AI News Briefing | Mini Apps",
+  title: "Past summaries | AI News Podcast | Mini Apps",
   description: "Browse past daily news summaries from the Figma journey feed.",
 };
 

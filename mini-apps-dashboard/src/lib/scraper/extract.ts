@@ -636,7 +636,7 @@ function stubArticleForFailedUrl(rawUrl: string): ExtractedArticle {
   }
   return {
     title: `Story from ${host}`,
-    text: `The user listed this URL as one of several news sources: ${url}. Full text could not be retrieved. The hosts MUST still discuss this as a separate item—infer likely topic from the URL path and domain—and connect it to the other stories. Do not merge into a single story.`,
+    text: `[EXTRACTION FAILED — headline-level only] Source URL: ${url}. No article body was retrieved (paywall, bot block, or timeout). The podcast hosts MUST: (1) Say explicitly they only have the link/topic, not full article text. (2) Name the domain and infer ONE cautious headline-style angle from the URL path only—do not invent quotes, numbers, or events. (3) Keep it to 1–2 short exchanges then move on. Do not fill time with generic English chit-chat.`,
     url,
   };
 }
