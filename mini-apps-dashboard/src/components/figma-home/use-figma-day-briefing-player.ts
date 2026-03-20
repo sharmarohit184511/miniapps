@@ -14,6 +14,8 @@ import {
 const POLL_MS = 1800;
 const POLL_MAX = 100;
 const FETCH_TIMEOUT_MS = 45_000;
+const GATEWAY_RETRY_MS = 1000;
+const GATEWAY_RETRY_STATUSES = new Set([502, 503, 504]);
 
 function fetchWithTimeout(
   input: string,
@@ -26,6 +28,20 @@ function fetchWithTimeout(
   return fetch(input, { ...rest, signal: ctrl.signal }).finally(() =>
     clearTimeout(t)
   );
+}
+
+async function fetchBriefingStatusWithGatewayRetry(
+  briefingId: string
+): Promise<{ r: Response; text: string }> {
+  const url = `/api/briefing-status/${encodeURIComponent(briefingId)}`;
+  let r = await fetchWithTimeout(url, { cache: "no-store" });
+  let text = await r.text();
+  if (GATEWAY_RETRY_STATUSES.has(r.status)) {
+    await new Promise((res) => setTimeout(res, GATEWAY_RETRY_MS));
+    r = await fetchWithTimeout(url, { cache: "no-store" });
+    text = await r.text();
+  }
+  return { r, text };
 }
 
 export function useFigmaDayBriefingPlayer() {
@@ -92,11 +108,9 @@ export function useFigmaDayBriefingPlayer() {
       for (let i = 0; i < POLL_MAX; i++) {
         await new Promise((r) => setTimeout(r, POLL_MS));
         let r: Response;
+        let text: string;
         try {
-          r = await fetchWithTimeout(
-            `/api/briefing-status/${encodeURIComponent(briefingId)}`,
-            { cache: "no-store" }
-          );
+          ({ r, text } = await fetchBriefingStatusWithGatewayRetry(briefingId));
         } catch (e) {
           const msg =
             e instanceof Error && e.name === "AbortError"
@@ -107,11 +121,12 @@ export function useFigmaDayBriefingPlayer() {
         }
         let d: Record<string, unknown>;
         try {
-          d = (await r.json()) as Record<string, unknown>;
+          d = JSON.parse(text) as Record<string, unknown>;
         } catch {
+          const trimmed = text.replace(/\s+/g, " ").trim().slice(0, 100);
           setBriefingErr((prev) => ({
             ...prev,
-            [key]: "Invalid response from briefing server.",
+            [key]: `Briefing server returned non-JSON (HTTP ${r.status}). Often a temporary gateway error — wait and retry.${trimmed ? ` (${trimmed}…)` : ""}`,
           }));
           return;
         }

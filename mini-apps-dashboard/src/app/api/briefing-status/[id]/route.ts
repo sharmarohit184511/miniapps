@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { absoluteBriefingAudioUrl, getBriefingApiOrigin } from "@/lib/briefing-api-base";
+import { getBriefing } from "@/lib/db/briefings";
 
 export async function GET(
   request: NextRequest,
@@ -9,18 +10,15 @@ export async function GET(
   if (!id?.trim()) {
     return NextResponse.json({ error: "Missing briefing id" }, { status: 400 });
   }
-  const base = getBriefingApiOrigin(request);
   try {
-    const res = await fetch(`${base}/api/briefings/${encodeURIComponent(id)}?t=${Date.now()}`, {
-      cache: "no-store",
-    });
-    const data = (await res.json()) as Record<string, unknown>;
-    if (!res.ok) {
-      return NextResponse.json(data, { status: res.status });
+    const briefing = await getBriefing(id);
+    if (!briefing) {
+      return NextResponse.json({ error: "Briefing not found" }, { status: 404 });
     }
-    const audio_url = absoluteBriefingAudioUrl(base, data.audio_url as string | undefined);
+    const base = getBriefingApiOrigin(request);
+    const audio_url = absoluteBriefingAudioUrl(base, briefing.audio_url);
     return NextResponse.json(
-      { ...data, audio_url },
+      { ...briefing, audio_url },
       {
         status: 200,
         headers: {
@@ -31,7 +29,7 @@ export async function GET(
     );
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to reach briefing app" },
+      { error: e instanceof Error ? e.message : "Failed to load briefing" },
       { status: 502 }
     );
   }

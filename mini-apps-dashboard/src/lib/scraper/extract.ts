@@ -663,10 +663,13 @@ export async function extractSources(
       void (cb as Promise<void>).catch(() => {});
     }
     if (src.type === "url") {
-      const perUrlMs = Math.min(
+      const rawPerUrlMs = Math.min(
         Math.max(Number(process.env.EXTRACT_PER_URL_TIMEOUT_MS ?? "85000") || 85000, 35000),
         180000
       );
+      /** Digest runs: cap wall time per URL so N sources cannot sum to N×85s worst case. */
+      const perUrlMs =
+        total > 5 ? Math.min(rawPerUrlMs, 45_000) : rawPerUrlMs;
       const useUrlSubprocess =
         process.env.EXTRACT_URL_SUBPROCESS === "true" &&
         resolveWorkerScript("extract-url-worker.cjs") != null;

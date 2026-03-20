@@ -93,6 +93,14 @@ export function BriefingProgressPanel({ status, pipeline_progress, sources, comp
     PHASE_LABELS[status] ||
     "Working…";
 
+  const showSourceHeadline =
+    compact &&
+    (status === "extracting" || status === "pending") &&
+    sources.length > 0;
+  const sourceHeadline = showSourceHeadline
+    ? `Source ${Math.min((pipeline_progress?.source_index ?? 0) + 1, sources.length)}/${sources.length} · `
+    : "";
+
   const activeStepIdx =
     status === "pending" || status === "extracting"
       ? 0
@@ -117,6 +125,7 @@ export function BriefingProgressPanel({ status, pipeline_progress, sources, comp
               compact ? "text-sm" : "text-lg sm:text-base"
             )}
           >
+            {sourceHeadline}
             {message}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
