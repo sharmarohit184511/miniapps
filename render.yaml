@@ -1,5 +1,9 @@
 # Render Blueprint: deploy the Next.js dashboard from the monorepo root.
 # https://docs.render.com/blueprint-spec
+#
+# If the service is created from the repo root (no rootDir), set:
+#   Build Command: yarn && yarn build   (or npm install && npm run build)
+# so `next build` runs; `yarn` alone only runs postinstall (npm ci), not build.
 services:
   - type: web
     name: mini-apps-dashboard

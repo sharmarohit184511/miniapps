@@ -4,6 +4,7 @@
   "description": "Render runs from repo root at /opt/render/project/src — package.json must live here. Next.js app: mini-apps-dashboard/",
   "scripts": {
     "postinstall": "npm ci --prefix mini-apps-dashboard",
+    "build": "npm run build --prefix mini-apps-dashboard",
     "start": "npm run start --prefix mini-apps-dashboard"
   }
 }
