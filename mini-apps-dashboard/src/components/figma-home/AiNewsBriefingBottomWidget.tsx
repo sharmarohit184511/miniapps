@@ -118,10 +118,11 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
     setExpanded(true);
   };
 
-  if (!effectivePlaying) {
+  /** Keep one chrome when audio is available; only the pre-listen state uses the compact bar (avoids play/pause layout jump). */
+  if (!ready) {
     return (
       <div className="border-b border-[#e8eef2] bg-white">
-        <div className="flex items-center gap-2 px-2 py-2">
+        <div className="flex min-h-[52px] items-center gap-2 px-2 py-2">
           <div
             className="h-10 w-1 shrink-0 rounded-full bg-[#0078ad] motion-safe:animate-pulse"
             aria-hidden
@@ -139,7 +140,7 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
             type="button"
             onClick={onPrimaryListen}
             className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0078ad] text-white shadow-sm transition hover:bg-[#006a99] active:scale-95"
-            aria-label={ready ? "Play" : "Open player"}
+            aria-label="Open player"
           >
             <Play className="size-4 translate-x-px fill-current" aria-hidden />
           </button>
@@ -182,9 +183,9 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
         aria-valuenow={Math.round(effectiveProgress.currentSec)}
         aria-valuemin={0}
         aria-valuemax={Math.round(effectiveProgress.durationSec) || 100}
-        className="h-1 w-full cursor-pointer bg-[#e8eef2]"
+        className="h-1 w-full shrink-0 cursor-pointer bg-[#e8eef2]"
         onClick={(e) => {
-          if (!ready || !effectiveProgress.durationSec) return;
+          if (!effectiveProgress.durationSec) return;
           const rect = e.currentTarget.getBoundingClientRect();
           const x = e.clientX - rect.left;
           effectiveSeekTo((x / rect.width) * effectiveProgress.durationSec);
@@ -196,17 +197,21 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
         />
       </div>
 
-      <div className="flex items-center gap-1 px-1.5 py-1.5">
+      <div className="flex min-h-[52px] items-center gap-1 px-1.5 py-1.5">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#eef6fb]">
-          <Play className="size-3.5 text-[#0078ad]" fill="currentColor" aria-hidden />
+          {effectivePlaying ? (
+            <Pause className="size-3.5 text-[#0078ad]" fill="currentColor" aria-hidden />
+          ) : (
+            <Play className="size-3.5 text-[#0078ad]" fill="currentColor" aria-hidden />
+          )}
         </div>
 
-        <div className="min-w-0 flex-1 leading-tight">
+        <div className="flex min-h-[46px] min-w-0 flex-1 flex-col justify-center leading-tight">
           <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#0078ad]">
             {eyebrow}
           </p>
           <p className="truncate text-[12px] font-bold text-[#141414]">{title}</p>
-          <p className="truncate text-[10px] text-black/45">{timeLine}</p>
+          <p className="truncate text-[10px] tabular-nums text-black/45">{timeLine}</p>
         </div>
 
         <button
@@ -226,9 +231,9 @@ export function AiNewsBriefingBottomWidget({ briefingUrl }: Props) {
           aria-label={effectivePlaying ? "Pause" : "Play"}
         >
           {effectivePlaying ? (
-            <Pause className="size-4" fill="currentColor" />
+            <Pause className="size-4 shrink-0" fill="currentColor" />
           ) : (
-            <Play className="size-4 translate-x-px fill-current pl-px" />
+            <Play className="size-4 shrink-0 translate-x-px fill-current" />
           )}
         </button>
         <button

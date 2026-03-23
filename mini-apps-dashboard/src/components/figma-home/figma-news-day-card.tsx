@@ -164,7 +164,7 @@ export function FigmaNewsDayCard({
           type="button"
           disabled={!!generatingFor && !gen}
           onClick={onPlay}
-          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#0078ad] text-white shadow-[0_2px_8px_rgba(0,120,173,0.35)] transition hover:bg-[#006a99] active:scale-[0.97] disabled:opacity-50"
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-[#0078ad] text-white shadow-[0_2px_8px_rgba(0,120,173,0.35)] transition hover:bg-[#006a99] active:scale-[0.97] disabled:opacity-50"
           aria-label={
             gen
               ? "Generating conversation briefing"
@@ -173,13 +173,15 @@ export function FigmaNewsDayCard({
                 : "Play conversation briefing"
           }
         >
-          {gen ? (
-            <Loader2 className="size-5 animate-spin" />
-          ) : isActivePlaying ? (
-            <Pause className="size-5" fill="currentColor" />
-          ) : (
-            <Play className="size-5 translate-x-0.5" fill="currentColor" />
-          )}
+          <span className="flex size-5 items-center justify-center [&_svg]:size-5">
+            {gen ? (
+              <Loader2 className="animate-spin" aria-hidden />
+            ) : isActivePlaying ? (
+              <Pause fill="currentColor" aria-hidden />
+            ) : (
+              <Play className="translate-x-px" fill="currentColor" aria-hidden />
+            )}
+          </span>
         </button>
         <div className="min-w-0 flex-1">
           {!isToday ? (
@@ -198,7 +200,7 @@ export function FigmaNewsDayCard({
           >
             {isToday ? day.dayLabel : day.date}
           </p>
-          <p className="mt-0.5 text-[11px] leading-snug text-black/50">
+          <p className="mt-0.5 line-clamp-2 min-h-[2.5rem] text-[11px] leading-snug text-black/50">
             {isToday
               ? tertiaryTodayLine(day, {
                   generating: gen,
