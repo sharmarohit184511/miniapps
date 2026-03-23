@@ -1,29 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Headphones,
-  Layers,
-  Play,
-  Sparkles,
-  Volume2,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Headphones, Play, Sparkles, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Modal width matches DiwaliHomeScreen + footer strip (`max-w-[360px]`). */
 
-type Highlight = { Icon: LucideIcon; text: string };
-
 type Slide = {
   kicker: string;
   title: string;
   lead: string;
-  highlights: Highlight[];
   heroIcon: LucideIcon;
 };
 
@@ -33,11 +20,6 @@ const SLIDES: Slide[] = [
     title: "Headlines as a short podcast",
     lead:
       "AI News Podcast turns each day’s top stories into one listenable flow—one place on your home screen, one tap to play. Less doom-scrolling, more knowing what actually moved the day.",
-    highlights: [
-      { Icon: Layers, text: "World, business, tech, sports—in one episode-shaped digest" },
-      { Icon: Clock, text: "Designed for a commute or coffee break, not the infinite feed" },
-      { Icon: Sparkles, text: "Fresh when you generate it—built for how you start the day" },
-    ],
     heroIcon: Sparkles,
   },
   {
@@ -45,11 +27,6 @@ const SLIDES: Slide[] = [
     title: "Two hosts, zero homework",
     lead:
       "Akshay and Kriti carry the conversation—questions, context, and handoffs between topics—so it feels like a real show, not a robot reading bullets. Listen hands-free while you move.",
-    highlights: [
-      { Icon: Headphones, text: "Natural dialogue, not a monotone readout" },
-      { Icon: Volume2, text: "Play, pause, replay—your pace" },
-      { Icon: Sparkles, text: "Engaging enough that you’ll finish the episode" },
-    ],
     heroIcon: Headphones,
   },
   {
@@ -57,11 +34,6 @@ const SLIDES: Slide[] = [
     title: "Start in seconds",
     lead:
       "Scroll to AI News Podcast on this home screen, pick a day, tap play. Want history, topics, or your own links? Use Open full app in the header anytime.",
-    highlights: [
-      { Icon: Play, text: "Today or any recent day—tap play and listen" },
-      { Icon: Layers, text: "Full app for power listeners and custom sources" },
-      { Icon: Clock, text: "Replay when you need a refresher" },
-    ],
     heroIcon: Play,
   },
 ];
@@ -167,23 +139,9 @@ export function AiNewsBriefingOnboardingModal({ open, onClose }: Props) {
           >
             {slide.title}
           </h2>
-          <p className="mb-6 text-center text-[13px] leading-relaxed text-black/60 sm:text-sm">
+          <p className="mb-8 text-center text-[13px] leading-relaxed text-black/60 sm:text-sm">
             {slide.lead}
           </p>
-
-          <ul className="mb-8 space-y-2.5 rounded-2xl border border-[#e5f1f7]/90 bg-gradient-to-b from-[#f8fcfe] to-white/80 px-4 py-3.5 sm:px-5 sm:py-4">
-            {slide.highlights.map(({ Icon, text }, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 text-left text-[13px] leading-snug text-[#1a3a52]/90"
-              >
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#0078ad]/10 text-[#0078ad]">
-                  <Icon className="size-4" strokeWidth={2} />
-                </span>
-                <span className="pt-1 font-medium">{text}</span>
-              </li>
-            ))}
-          </ul>
 
           <div className="flex justify-center gap-2">
             {SLIDES.map((_, i) => (
